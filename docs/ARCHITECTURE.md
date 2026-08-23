@@ -4,14 +4,16 @@
 
 ## Aktuální stav
 
-Zatím existuje pouze dokumentační základ. Framework, renderer a přesná struktura zdrojového kódu ještě nejsou potvrzené.
+Zatím existuje pouze dokumentační základ. Perspektiva, tahový model a skrytý hexový rastr jsou potvrzené; konkrétní 3D knihovna ještě čeká na potvrzení.
 
 ## Předběžný technický směr
 
 - Webová aplikace optimalizovaná i pro mobilní zařízení.
-- Vhodný výchozí bod: Vite + TypeScript.
+- Základ: Vite + TypeScript.
 - 3D izometrický svět používá pro pohyb a výpočet tras skrytý hexový rastr.
-- Herní framework nebo vlastní Canvas renderer se zvolí podle potvrzené perspektivy a rozsahu simulace.
+- Doporučený renderer: Three.js s ortografickou kamerou.
+- Herní pravidla zůstávají v čistém TypeScriptu a nesmí záviset na Three.js.
+- Rozhraní je běžná HTML/CSS vrstva nad 3D scénou.
 - Produkční build musí být staticky nasaditelný na běžný webový hosting.
 
 ## Zamýšlená struktura
@@ -20,7 +22,7 @@ Zatím existuje pouze dokumentační základ. Framework, renderer a přesná str
 Oasis/
 ├── docs/           # Návrh, architektura a plán práce
 ├── public/         # Statické soubory kopírované beze změny
-├── src/            # Zdrojový kód aplikace (po založení)
+├── src/            # Herní pravidla, renderer, UI a obsah (po založení)
 ├── AGENTS.md       # Krátké instrukce pro práci na projektu
 ├── README.md       # Veřejný přehled projektu
 └── package.json    # Skripty a závislosti (po založení aplikace)
@@ -33,10 +35,11 @@ Oasis/
 - Nepřidávat knihovnu bez konkrétní potřeby.
 - Preferovat malé moduly s jasnou odpovědností.
 - Technické rozhodnutí, které ovlivní více částí projektu, stručně zapsat sem.
+- Náhoda v herních pravidlech musí používat uložený seed, aby šlo chyby reprodukovat.
 
 ## Otevřená technická rozhodnutí
 
-- Herní framework: Phaser, nebo vlastní Canvas.
+- Potvrdit Three.js jako 3D renderer.
 - Ukládání postupu: pouze lokální, nebo později serverové.
 - Přesný model hexové mapy, tahů a simulace zásob.
 - Cílový hosting.
