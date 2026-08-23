@@ -99,7 +99,25 @@ Smrt může být hlavně v začátcích hry častá a očekávaná. Nemá však 
 
 - Každá expedice může přispět k trvalému meta-progressu.
 - Množství a forma meta-progressu se mohou odvíjet od dosažené vzdálenosti, objevů, střetů nebo dalších úspěchů výpravy.
+- Meta-progress může trvale zvyšovat základní maxima hráče, zejména Vitalitu a kapacitu Pramene. Kapacita vody, nosnost a další odvozené hodnoty mohou být zvyšované meta-progressem, vybavením nebo rozvojem oázy.
 - Konkrétní meta-progrese a přesná ztráta kořisti při smrti zatím nejsou rozhodnuté.
+
+## Vizuální směr
+
+- Grafika je stylizovaná 3D izometrie s jednoduchými low-poly tvary a dobře čitelnými siluetami.
+- Nedostatek detailních assetů kompenzuje soudržná barevná paleta, práce se světlem, stínem, mlhou a drobným pohybem prostředí.
+- Cílem není realistická grafika. Jednoduchost modelů má působit záměrně a konzistentně.
+- Oáza má být barevně a světelně výrazně odlišná od okolní pouště.
+
+## Den, noc a mraky
+
+- Svět má cyklus dne a noci s proměnlivou barvou světla, oblohou a dynamickými stíny.
+- Herní čas se posouvá provedenými akcemi podle jejich ceny Energie, nikoli čekáním hráče v reálném čase.
+- Během plánování se stav světa nemění, takže zobrazená cena akce zůstává platná.
+- Mraky vytvářejí pohybující se stíny na zemi.
+- Zastínění může mírně snížit cenu venkovních fyzických akcí v Energii; přesná hodnota se určí prototypováním.
+- Náhled trasy musí zahrnout předvídatelný vliv denní doby a mraků. Počasí nesmí bez varování změnit cenu již potvrzené akce.
+- Případná akce čekání musí mít vlastní cenu nebo spotřebu, aby nešlo bezplatně čekat na výhodný stín.
 
 ## Boj
 
@@ -162,3 +180,4 @@ Expedice používají **hexový rastr**, protože hlavním prostorovým motivem 
 - Rozhodnout přesnou vazbu hydratace na Pramen.
 - Stanovit následky smrti, zachování vybavení a podobu meta-progressu.
 - Rozhodnout podobu mapy a procedurálního generování.
+- Určit délku dne, vliv noci a přesnou slevu Energie ve stínu.
