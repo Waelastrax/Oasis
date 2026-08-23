@@ -10,7 +10,7 @@
 - **Vitest** — testy herních pravidel, hexových souřadnic a deterministické náhody.
 - **localStorage** — první verzované ukládání postupu bez serveru.
 
-Three.js je doporučení, ne dosud potvrzené rozhodnutí. Phaser ani vlastní Canvas renderer se pro 3D izometrický svět nehodí tak dobře. Babylon.js by poskytl více hotových systémů, ale pro malou tahovou hru by přinesl větší API a více struktury, než zatím potřebujeme.
+Three.js je potvrzený renderer. Phaser ani vlastní Canvas renderer se pro 3D izometrický svět nehodí tak dobře. Babylon.js by poskytl více hotových systémů, ale pro malou tahovou hru by přinesl větší API a více struktury, než potřebujeme.
 
 ## Zásadní rozdělení
 
@@ -61,6 +61,7 @@ interface GameState {
   world: WorldState
   expedition: ExpeditionState | null
   rngSeed: number
+  worldTime: number
   saveVersion: number
 }
 
@@ -135,6 +136,54 @@ Rozsahy, váhy a práh jsou data, nikoli hodnoty pevně zapsané v systému. Ná
 - UI je responzivní DOM vrstva, nikoli text a tlačítka vykreslovaná uvnitř 3D scény.
 - Plynulá animace pohybu nemění tahová pravidla a lze ji přeskočit nebo zrychlit.
 
+## Vizuální implementace bez hotových assetů
+
+První vizuální verze používá vlastní jednoduché low-poly tvary místo směsi nesourodých assetů:
+
+- terén tvoří barevně odstupňované hexové plochy s mírnou změnou výšky,
+- duny vzniknou deformací vrcholů a jemnou barevnou variací, ne detailní texturou,
+- kameny lze vytvořit z nepravidelných nízkopolygonálních těles,
+- kmeny, listy a jednoduché stavby se skládají z několika základních geometrií,
+- oáza dostane samostatný vodní materiál, sytější vegetaci a chladnější ambientní světlo,
+- postava a složitější objekty mohou být v prvním prototypu čitelné stylizované zástupné modely.
+
+Materiály mají sdílet omezenou paletu a podobnou hrubost povrchu. Kvalitu dojmu mají nést hlavně kompozice, siluety, světlo a stín; vyšší geometrický detail se přidává až tam, kde zlepšuje čitelnost.
+
+## Dynamické osvětlení a cyklus dne
+
+- Slunce představuje jeden `DirectionalLight`, který jako jediný hlavní zdroj vrhá dynamické stíny.
+- Měkké vyplňující světlo zajišťuje `HemisphereLight`; jeho barva a intenzita se mění s denní dobou.
+- Východ, den, západ a noc interpolují barvu oblohy, mlhy, světla a jeho směr.
+- V noci se hlavní směrové světlo přepne na slabý měsíční režim místo druhé souběžné stínové mapy.
+- Stínová kamera sleduje jen viditelnou oblast kolem hráče. Rozlišení a počet objektů vrhajících stín se přizpůsobí mobilnímu výkonu.
+- Herní čas se zvyšuje příkazem přibližně jako `worldTime += energyCost * minutesPerEnergy`; samotné přemýšlení hráče čas neposouvá.
+- Po provedení příkazu renderer změnu osvětlení plynule animuje, ale pravidla okamžitě pracují s novým diskrétním časem.
+
+## Mraky a jejich stíny
+
+Mraky se nemají vykreslovat jako skutečná geometrie vrhající stíny přes shadow mapu. To by bylo drahé a na mobilu zbytečné.
+
+Doporučený systém:
+
+1. ze seedu se vytvoří opakovatelná nízkofrekvenční `DataTexture` mraků,
+2. maska používá doménově deformovaný vícevrstvý šum a měkký práh, aby nevypadala jako obyčejný Perlinův šum,
+3. stejná textura se v shaderu promítá ve světových souřadnicích na terén a pomalu posouvá směrem větru,
+4. CPU dokáže stejnou masku vzorkovat ve středu každého hexu pro herní pravidla,
+5. vizuální stín a herní sleva Energie proto odpovídají stejnému poli.
+
+Mrakový stín pouze ztmavuje a mírně ochlazuje výslednou barvu povrchu; nevytváří další skutečnou stínovou mapu.
+
+### Vliv na tahy
+
+Pro každý krok plánované trasy se postupuje deterministicky:
+
+1. určí se budoucí světový čas při vstupu na hex,
+2. z tohoto času a polohy se vzorkuje pokrytí mrakem,
+3. vypočítá se malý modifikátor ceny Energie,
+4. výsledná cena posune čas pro následující krok.
+
+Náhled tak dokáže ukázat konečnou cenu celé trasy včetně očekávaného stínu. Doporučený první rozsah slevy je nejvýše 10–15 % pro venkovní fyzické akce. Přesná hodnota zůstává konfigurační a bude se testovat; magie ani interakce uvnitř staveb ji používat nemusí.
+
 ## První hratelný prototyp
 
 První prototyp záměrně neobsahuje stavění ani plný boj. Má ověřit hlavní rozhodování expedice.
@@ -148,6 +197,7 @@ První prototyp záměrně neobsahuje stavění ani plný boj. Má ověřit hlav
 7. Pokračování bez vody a deterministické hody vyčerpání.
 8. Smrt, návrat do oázy a jednoduchý meta-progress za největší dosaženou vzdálenost.
 9. Uložení a načtení stavu.
+10. Základní akční cyklus dne a noci a levná pohybující se maska stínů mraků.
 
 Teprve po ověření této smyčky následují stavby, více typů lokací, užitková kouzla a boj.
 
@@ -167,6 +217,8 @@ Tyto hodnoty slouží jen k rychlému ověření smyčky a mají být uložené 
 
 Trvalá mapa je doporučená proto, aby měl průzkum hodnotu a hráč si vytvářel znalost okolí oázy. Seed umožní svět přesně reprodukovat při testování.
 
+Meta-progress později zvyšuje konfigurovatelná základní maxima, zejména Vitalitu a Pramen. První datový model má proto oddělit základní hodnotu, trvalý bonus, bonus vybavení a výslednou hodnotu.
+
 ## Testy, které mají vzniknout současně s prototypem
 
 - vzdálenost, sousedé a převody hexových souřadnic,
@@ -180,6 +232,6 @@ Trvalá mapa je doporučená proto, aby měl průzkum hodnotu a hráč si vytvá
 
 ## Rozhodnutí před zahájením kódu
 
-1. Potvrdit Three.js jako renderer.
-2. Potvrdit, nebo upravit doporučení trvalé mapy generované jednou ze seedu.
-3. Potvrdit, nebo upravit doporučené testovací hodnoty.
+1. Potvrdit, nebo upravit doporučení trvalé mapy generované jednou ze seedu.
+2. Potvrdit, nebo upravit doporučené testovací hodnoty.
+3. Určit délku herního dne a počáteční vliv stínu na cenu Energie.
