@@ -10,6 +10,7 @@ Zatím existuje pouze dokumentační základ. Framework, renderer a přesná str
 
 - Webová aplikace optimalizovaná i pro mobilní zařízení.
 - Vhodný výchozí bod: Vite + TypeScript.
+- 3D izometrický svět používá pro pohyb a výpočet tras skrytý hexový rastr.
 - Herní framework nebo vlastní Canvas renderer se zvolí podle potvrzené perspektivy a rozsahu simulace.
 - Produkční build musí být staticky nasaditelný na běžný webový hosting.
 
@@ -37,6 +38,5 @@ Oasis/
 
 - Herní framework: Phaser, nebo vlastní Canvas.
 - Ukládání postupu: pouze lokální, nebo později serverové.
-- Přesný model světa, času a simulace zásob.
+- Přesný model hexové mapy, tahů a simulace zásob.
 - Cílový hosting.
-
