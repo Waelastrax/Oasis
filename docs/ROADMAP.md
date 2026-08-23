@@ -9,7 +9,9 @@
 - [x] Navrhnout nejmenší hratelnou verzi expedice.
 - [x] Potvrdit Three.js jako renderer.
 - [x] Založit aplikaci a vytvořit první vizuální řez.
-- [ ] Oddělit hexovou simulaci od vykreslování a implementovat plánování cesty.
+- [x] Oddělit hexovou simulaci od vykreslování a implementovat plánování cesty.
+- [x] Propojit pohybující se stíny mraků s náhledem ceny trasy.
+- [ ] Přidat první těžitelnou surovinu, kořist a návrat do oázy.
 
 ## První hratelný milník
 

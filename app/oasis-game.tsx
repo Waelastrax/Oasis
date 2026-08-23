@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { findHexPath, hexDistance, hexKey, type HexCoord } from "../game/hex/grid";
+import { createCloudField } from "../game/systems/clouds";
 
-type HexInfo = { key: string; q: number; r: number; distance: number; title: string; description: string; energy: number; shade: number };
-type SceneApi = { setHour: (hour: number) => void; focusSelection: () => void };
+type HexInfo = { key: string; q: number; r: number; distance: number; title: string; description: string; baseEnergy: number };
+type SelectionInfo = HexInfo & { energy: number; waterCost: number; shade: number; steps: number };
+type TravelResult = { energySpent: number; waterSpent: number; newHour: number };
+type SceneApi = { setHour: (hour: number) => void; travelSelection: () => Promise<TravelResult | null> };
 
 const HEX_RADIUS = 7;
 const HEX_SIZE = 1.08;
-const distance = (q: number, r: number) => (Math.abs(q) + Math.abs(r) + Math.abs(q + r)) / 2;
 const toWorld = (q: number, r: number) => new THREE.Vector3(HEX_SIZE * Math.sqrt(3) * (q + r / 2), 0, HEX_SIZE * 1.5 * r);
 const seeded = (q: number, r: number, salt = 0) => {
   const value = Math.sin(q * 127.1 + r * 311.7 + salt * 74.7) * 43758.5453;
@@ -76,36 +79,7 @@ function makeShrub(scale = 1) {
   return shrub;
 }
 
-function cloudTexture() {
-  const size = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext("2d");
-  if (!context) return new THREE.Texture();
-  context.fillStyle = "black";
-  context.fillRect(0, 0, size, size);
-  context.filter = "blur(18px)";
-  for (let index = 0; index < 52; index += 1) {
-    const x = seeded(index, 2, 11) * size;
-    const y = seeded(index, 3, 12) * size;
-    const radius = 12 + seeded(index, 4, 13) * 34;
-    const strength = 0.12 + seeded(index, 5, 14) * 0.22;
-    const gradient = context.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, `rgba(255,255,255,${strength})`);
-    gradient.addColorStop(1, "rgba(255,255,255,0)");
-    context.fillStyle = gradient;
-    context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-  }
-  context.filter = "none";
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(2.2, 2.2);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
-function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
+function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#9bc0be");
   scene.fog = new THREE.FogExp2("#b6b18f", 0.027);
@@ -137,13 +111,14 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
   scene.add(world);
   const selectable: THREE.Mesh[] = [];
   const hexData = new Map<string, HexInfo>();
+  const tileByKey = new Map<string, THREE.Mesh>();
   // Tiles overlap very slightly so the logical hex grid stays invisible.
   const tileGeometry = new THREE.CylinderGeometry(HEX_SIZE * 1.012, HEX_SIZE * 1.012, 0.3, 6);
   const titles = ["Tichá duna", "Kamenný hřbet", "Závětrná pánev", "Zlatý přesyp"];
 
   for (let q = -HEX_RADIUS; q <= HEX_RADIUS; q += 1) {
     for (let r = Math.max(-HEX_RADIUS, -q - HEX_RADIUS); r <= Math.min(HEX_RADIUS, -q + HEX_RADIUS); r += 1) {
-      const range = distance(q, r);
+      const range = hexDistance({ q, r });
       const position = toWorld(q, r);
       const height = range <= 2 ? 0.15 : 0.16 + seeded(q, r, 1) * 0.1;
       const tile = new THREE.Mesh(tileGeometry, new THREE.MeshStandardMaterial({ color: terrainColor(range, q, r), roughness: 0.96, flatShading: true }));
@@ -154,12 +129,12 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
       tile.userData.topY = height - 0.19;
       world.add(tile);
       selectable.push(tile);
+      tileByKey.set(`${q},${r}`, tile);
       hexData.set(`${q},${r}`, {
         key: `${q},${r}`, q, r, distance: range,
         title: range === 0 ? "Srdce oázy" : titles[Math.floor(seeded(q, r, 16) * titles.length)],
         description: range === 0 ? "Bezpečný pramen, ze kterého vychází magie i všechny výpravy." : "Neprozkoumaný kus pouště. Stín mraků může cestu trochu ulehčit.",
-        energy: Math.max(1, range + Math.round(seeded(q, r, 19) * 2)),
-        shade: Math.round(seeded(q, r, 22) * 32 + 8),
+        baseEnergy: range >= 5 && seeded(q, r, 19) > 0.62 ? 2 : 1,
       });
       if (range > 1 && seeded(q, r, 5) > 0.77) {
         const rock = makeRock(range > 4 ? "#654a3d" : "#7c6349");
@@ -213,12 +188,20 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
   portal.position.set(portalPosition.x, 0.75, portalPosition.z);
   world.add(portal);
 
-  const clouds = cloudTexture();
-  const cloudPlane = new THREE.Mesh(new THREE.PlaneGeometry(34, 34), new THREE.MeshBasicMaterial({ map: clouds, color: "#294b4b", transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.MultiplyBlending }));
+  const cloudField = createCloudField();
+  const cloudPlane = new THREE.Mesh(new THREE.PlaneGeometry(34, 34), new THREE.MeshBasicMaterial({ map: cloudField.texture, transparent: true, opacity: 0.72, depthWrite: false, side: THREE.DoubleSide }));
   cloudPlane.rotation.x = -Math.PI / 2;
-  cloudPlane.position.y = 0.43;
+  cloudPlane.position.y = 0.31;
   cloudPlane.renderOrder = 3;
   world.add(cloudPlane);
+
+  const pathLine = new THREE.Line(
+    new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({ color: "#ffe28b", transparent: true, opacity: 0.9, depthTest: false }),
+  );
+  pathLine.renderOrder = 5;
+  pathLine.visible = false;
+  world.add(pathLine);
 
   const selectionRing = new THREE.Mesh(new THREE.RingGeometry(0.84, 0.94, 6, 1, Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#fff0ae", transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthTest: false }));
   selectionRing.rotation.x = -Math.PI / 2;
@@ -229,6 +212,11 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let selectedPosition = new THREE.Vector3();
+  let currentHex: HexCoord = { q: 0, r: 0 };
+  let selectedPath: HexCoord[] = [];
+  let selectedPreview: SelectionInfo | null = null;
+  let movementQueue: HexCoord[] = [];
+  let movementResolve: ((result: TravelResult) => void) | null = null;
   let currentHour = 9;
   let targetHour = 9;
   let frame = 0;
@@ -249,7 +237,47 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
   };
   lightAt(currentHour);
 
+  const stepEnergy = (coord: HexCoord) => {
+    const info = hexData.get(hexKey(coord));
+    if (!info) return Number.POSITIVE_INFINITY;
+    const position = toWorld(coord.q, coord.r);
+    const shade = cloudField.sample(position.x, position.z);
+    return info.baseEnergy * (1 - shade * 0.15);
+  };
+
+  const previewPath = (info: HexInfo) => {
+    const goal = { q: info.q, r: info.r };
+    const path = findHexPath(currentHex, goal, (coord) => hexData.has(hexKey(coord)), stepEnergy);
+    const steps = path.slice(1);
+    const energy = steps.reduce((total, coord) => total + stepEnergy(coord), 0);
+    const shade = steps.length === 0 ? cloudField.sample(selectedPosition.x, selectedPosition.z) : steps.reduce((total, coord) => {
+      const position = toWorld(coord.q, coord.r);
+      return total + cloudField.sample(position.x, position.z);
+    }, 0) / steps.length;
+    return {
+      ...info,
+      energy: Number(energy.toFixed(1)),
+      waterCost: Math.ceil(energy),
+      shade: Math.round(shade * 100),
+      steps: steps.length,
+      path,
+    };
+  };
+
+  const showPath = (path: HexCoord[]) => {
+    const points = path.map((coord) => {
+      const position = toWorld(coord.q, coord.r);
+      const tile = tileByKey.get(hexKey(coord));
+      position.y = Number(tile?.userData.topY ?? 0.08) + 0.08;
+      return position;
+    });
+    pathLine.geometry.dispose();
+    pathLine.geometry = new THREE.BufferGeometry().setFromPoints(points);
+    pathLine.visible = points.length > 1;
+  };
+
   const selectHex = (event: PointerEvent) => {
+    if (movementQueue.length > 0) return;
     const bounds = renderer.domElement.getBoundingClientRect();
     pointer.set(((event.clientX - bounds.left) / bounds.width) * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
@@ -260,7 +288,11 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
     selectedPosition = hit.object.position.clone();
     selectionRing.position.set(selectedPosition.x, Number(hit.object.userData.topY ?? 0.28) + 0.025, selectedPosition.z);
     selectionRing.visible = true;
-    onSelect(info);
+    const preview = previewPath(info);
+    selectedPath = preview.path;
+    selectedPreview = preview;
+    showPath(selectedPath);
+    onSelect(preview);
   };
   renderer.domElement.addEventListener("pointerup", selectHex);
   const zoom = (event: WheelEvent) => {
@@ -289,10 +321,36 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
     const hourDelta = ((targetHour - currentHour + 36) % 24) - 12;
     currentHour = (currentHour + hourDelta * Math.min(1, delta * 1.7) + 24) % 24;
     lightAt(currentHour);
-    clouds.offset.set((currentHour / 24) * 0.42, (currentHour / 24) * 0.16);
+    cloudField.advance(delta);
     portalRing.rotation.z += delta * 0.45;
     portal.position.y = 0.75 + Math.sin(clock.elapsedTime * 1.6) * 0.035;
     water.rotation.y += delta * 0.04;
+    const nextHex = movementQueue[0];
+    if (nextHex) {
+      const target = toWorld(nextHex.q, nextHex.r);
+      target.y = 0.12;
+      const direction = target.clone().sub(player.position);
+      const remaining = direction.length();
+      if (remaining > 0.001) player.rotation.y = Math.atan2(direction.x, direction.z);
+      player.position.add(direction.normalize().multiplyScalar(Math.min(remaining, delta * 3.2)));
+      if (remaining < 0.055) {
+        player.position.copy(target);
+        currentHex = nextHex;
+        movementQueue.shift();
+        if (movementQueue.length === 0 && selectedPreview && movementResolve) {
+          const result = {
+            energySpent: selectedPreview.energy,
+            waterSpent: selectedPreview.waterCost,
+            newHour: (targetHour + selectedPreview.energy * 0.2) % 24,
+          };
+          targetHour = result.newHour;
+          pathLine.visible = false;
+          selectionRing.visible = false;
+          movementResolve(result);
+          movementResolve = null;
+        }
+      }
+    }
     renderer.render(scene, camera);
   };
   animate();
@@ -300,10 +358,10 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
   return {
     api: {
       setHour: (hour: number) => { targetHour = hour; },
-      focusSelection: () => {
-        if (!selectionRing.visible) return;
-        camera.position.lerp(new THREE.Vector3(selectedPosition.x + 12.5, 15.5, selectedPosition.z + 14.5), 0.34);
-        camera.lookAt(selectedPosition.x, 0, selectedPosition.z);
+      travelSelection: () => {
+        if (!selectedPreview || selectedPath.length <= 1 || movementQueue.length > 0) return Promise.resolve(null);
+        movementQueue = selectedPath.slice(1);
+        return new Promise<TravelResult>((resolve) => { movementResolve = resolve; });
       },
     } satisfies SceneApi,
     dispose: () => {
@@ -317,22 +375,27 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
         (Array.isArray(object.material) ? object.material : [object.material]).forEach((material) => material.dispose());
       });
       tileGeometry.dispose();
-      clouds.dispose();
+      pathLine.geometry.dispose();
+      (pathLine.material as THREE.Material).dispose();
+      cloudField.texture.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     },
   };
 }
 
-function Resource({ label, value, className }: { label: string; value: string; className: string }) {
-  return <div className={`resource ${className}`}><div className="resource-label"><span>{label}</span><strong>{value}</strong></div><div className="meter"><span /></div></div>;
+function Resource({ label, current, maximum, className }: { label: string; current: number; maximum: number; className: string }) {
+  const percentage = `${Math.max(0, Math.min(100, (current / maximum) * 100))}%`;
+  return <div className={`resource ${className}`}><div className="resource-label"><span>{label}</span><strong>{Math.round(current)} / {maximum}</strong></div><div className="meter"><span style={{ width: percentage }} /></div></div>;
 }
 
 export default function OasisGame() {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<SceneApi | null>(null);
   const [hour, setHour] = useState(9);
-  const [selected, setSelected] = useState<HexInfo | null>(null);
+  const [selected, setSelected] = useState<SelectionInfo | null>(null);
+  const [water, setWater] = useState(12);
+  const [moving, setMoving] = useState(false);
   const [webglError, setWebglError] = useState(false);
 
   useEffect(() => {
@@ -352,6 +415,20 @@ export default function OasisGame() {
     scene.current?.setHour(next);
   };
   const period = hour >= 6 && hour < 11 ? "Ráno" : hour < 17 ? "Den" : hour < 21 ? "Soumrak" : "Noc";
+  const wholeHour = Math.floor(hour) % 24;
+  const minutes = Math.round((hour - Math.floor(hour)) * 60) % 60;
+  const hourLabel = `${String(wholeHour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  const travel = async () => {
+    if (!selected || moving) return;
+    setMoving(true);
+    const result = await scene.current?.travelSelection();
+    if (result) {
+      setWater((current) => Math.max(0, current - result.waterSpent));
+      setHour(Math.round(result.newHour * 10) / 10);
+      setSelected(null);
+    }
+    setMoving(false);
+  };
 
   return (
     <main className="game-shell">
@@ -361,12 +438,12 @@ export default function OasisGame() {
       <div className="hud">
         <header className="brand"><p className="eyebrow">Výprava začíná</p><h1>Oasis</h1></header>
         <section className="resource-bar" aria-label="Zdroje hráče">
-          <Resource label="Vitalita" value="20 / 20" className="vitality" />
-          <Resource label="Pramen" value="10 / 10" className="spring" />
-          <Resource label="Voda" value="12 / 12" className="water" />
+          <Resource label="Vitalita" current={20} maximum={20} className="vitality" />
+          <Resource label="Pramen" current={10} maximum={10} className="spring" />
+          <Resource label="Voda" current={water} maximum={12} className="water" />
         </section>
         <section className="time-card" aria-label="Denní doba">
-          <div className="time-row"><div className="time-copy"><span>{period}</span><strong>{String(hour).padStart(2, "0")}:00</strong></div><button className="time-button" type="button" onClick={advanceTime} aria-label="Posunout čas o tři hodiny">›</button></div>
+          <div className="time-row"><div className="time-copy"><span>{period}</span><strong>{hourLabel}</strong></div><button className="time-button" type="button" onClick={advanceTime} aria-label="Posunout čas o tři hodiny">›</button></div>
           <div className="time-track" style={{ "--time-progress": hour / 24 } as React.CSSProperties}><div className="time-dot" /></div>
         </section>
         <section className="selection-card" aria-live="polite">
@@ -375,12 +452,14 @@ export default function OasisGame() {
           <p>{selected?.description ?? "Klepni na některé místo v poušti a zobrazí se jeho předběžná cena."}</p>
           <div className="cost-row">
             <span className="cost-chip">Energie <strong>{selected?.energy ?? "—"}</strong></span>
+            <span className="cost-chip">Voda <strong>{selected?.waterCost ?? "—"}</strong></span>
             <span className="cost-chip">Stín <strong>{selected ? `${selected.shade} %` : "—"}</strong></span>
-            <span className="cost-chip">Vzdálenost <strong>{selected?.distance ?? "—"}</strong></span>
+            <span className="cost-chip">Kroky <strong>{selected?.steps ?? "—"}</strong></span>
           </div>
-          <button className="action-button" type="button" disabled={!selected} onClick={() => scene.current?.focusSelection()}>{selected ? "Zaměřit lokaci" : "Nejdřív vyber hex"}</button>
+          {selected && selected.waterCost > water && <p className="warning">Voda cestu nepokryje. Další krok později vyvolá postih vyčerpání.</p>}
+          <button className="action-button" type="button" disabled={!selected || selected.steps === 0 || moving} onClick={travel}>{moving ? "Cesta probíhá…" : selected?.steps === 0 ? "Už jsi tady" : selected ? "Vyrazit sem" : "Nejdřív vyber cíl"}</button>
         </section>
-        <div className="hint">Klikni na mapu · kolečkem přibliž · šipkou změň denní dobu</div>
+        <div className="hint">Vyber cíl · zkontroluj trasu a cenu · potvrď výpravu</div>
       </div>
     </main>
   );

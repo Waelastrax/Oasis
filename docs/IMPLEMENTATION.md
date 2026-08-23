@@ -44,7 +44,16 @@ content/                 # datové definice terénů, lokací, zdrojů a kouzel
 persistence/             # verzované ukládání a načítání
 ```
 
-První vizuální řez zůstává v `app/oasis-game.tsx`. Při implementaci skutečných pravidel se simulace postupně přesune do samostatných modulů výše. Není potřeba ECS, fyzikální engine ani globální stavová knihovna.
+Three.js scéna a její dočasný herní stav zatím zůstávají v `app/oasis-game.tsx`. A* a hexová geometrie jsou oddělené v `game/hex/grid.ts`; společná vizuální a pravidlová maska mraků je v `game/systems/clouds.ts`. Další pravidla se budou postupně přesouvat do samostatných modulů. Není potřeba ECS, fyzikální engine ani globální stavová knihovna.
+
+## Aktuálně implementovaný řez
+
+- výběr cíle na skrytém hexovém rastru,
+- A* trasa od aktuální pozice hráče,
+- náhled kroků, Energie, vody a průměrného zastínění,
+- potvrzený plynulý pohyb postavy po trase,
+- odečtení vody a posun herního času,
+- plynule se pohybující mraková maska sdílená obrazem i výpočtem stínu.
 
 ## Herní stav
 

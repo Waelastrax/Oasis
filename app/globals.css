@@ -42,9 +42,10 @@ button { color: inherit; font: inherit; }
 .selection-card { grid-column: 1; grid-row: 3; align-self: end; width: min(320px, 100%); padding: 16px; border-radius: 20px 20px 20px 6px; pointer-events: auto; }
 .selection-card h2 { margin: 2px 0 5px; font-family: Georgia, "Times New Roman", serif; font-size: 22px; font-weight: 500; }
 .selection-card p { margin: 0; color: var(--ink-muted); font-size: 12px; line-height: 1.5; }
-.cost-row { display: flex; gap: 8px; margin-top: 13px; }
+.cost-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
 .cost-chip { padding: 6px 9px; border: 1px solid rgba(255,255,255,.08); border-radius: 8px; background: rgba(255,255,255,.045); color: var(--ink-muted); font-size: 11px; }
 .cost-chip strong { color: var(--ink); }
+.selection-card .warning { margin-top: 10px; color: #f0b27b; }
 .action-button { width: 100%; margin-top: 12px; padding: 9px 12px; border-radius: 10px; background: linear-gradient(135deg, rgba(83,154,129,.55), rgba(52,102,89,.55)); color: #f7efda; font-size: 12px; font-weight: 700; letter-spacing: .06em; }
 .action-button:disabled { cursor: default; opacity: .45; transform: none; }
 .hint { grid-column: 2; grid-row: 3; justify-self: center; align-self: end; padding: 8px 13px; border-radius: 999px; color: var(--ink-muted); font-size: 11px; }
