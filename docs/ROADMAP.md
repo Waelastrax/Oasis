@@ -8,7 +8,8 @@
 - [x] Upřesnit perspektivu, tahové ovládání a skrytý hexový rastr.
 - [x] Navrhnout nejmenší hratelnou verzi expedice.
 - [x] Potvrdit Three.js jako renderer.
-- [ ] Založit aplikaci a vytvořit první hratelný prototyp.
+- [x] Založit aplikaci a vytvořit první vizuální řez.
+- [ ] Oddělit hexovou simulaci od vykreslování a implementovat plánování cesty.
 
 ## První hratelný milník
 

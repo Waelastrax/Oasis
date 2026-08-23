@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #f8edcf;
+  --ink-muted: #c7b991;
+  --glass: rgba(31, 28, 25, 0.74);
+  --line: rgba(255, 235, 186, 0.16);
+  --gold: #e8b862;
+  --water: #55c8ba;
+}
+
+* { box-sizing: border-box; }
+html, body { width: 100%; min-height: 100%; margin: 0; overflow: hidden; background: #171d1d; color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+button { color: inherit; font: inherit; }
+.game-shell { position: relative; width: 100vw; height: 100svh; overflow: hidden; background: radial-gradient(circle at 50% 44%, rgba(96, 129, 113, 0.14), transparent 34%), #171d1d; }
+.scene-host, .scene-host canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.webgl-fallback { position: absolute; inset: 44% auto auto 50%; transform: translate(-50%, -50%); max-width: 360px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 14px; background: rgba(24,22,20,.86); color: var(--ink-muted); text-align: center; font-size: 13px; }
+.vignette { pointer-events: none; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,13,13,.22), transparent 22%, transparent 74%, rgba(7,10,10,.5)), radial-gradient(circle at center, transparent 48%, rgba(6,8,8,.48) 118%); }
+.hud { position: absolute; inset: 0; pointer-events: none; padding: clamp(12px, 2vw, 24px); display: grid; grid-template-columns: minmax(190px, 280px) 1fr minmax(190px, 280px); grid-template-rows: auto 1fr auto; gap: 16px; }
+.brand, .resource-bar, .selection-card, .time-card, .hint { border: 1px solid var(--line); background: var(--glass); box-shadow: 0 16px 44px rgba(4,6,6,.28); backdrop-filter: blur(13px) saturate(110%); -webkit-backdrop-filter: blur(13px) saturate(110%); }
+.brand { grid-column: 1; align-self: start; width: max-content; max-width: 100%; padding: 12px 16px 13px; border-radius: 6px 20px 20px 20px; }
+.eyebrow { margin: 0 0 4px; color: var(--gold); font-size: 10px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; }
+.brand h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(25px, 4vw, 38px); font-weight: 500; letter-spacing: .06em; line-height: .95; }
+.resource-bar { grid-column: 2; justify-self: center; align-self: start; display: flex; gap: 4px; padding: 5px; border-radius: 999px; }
+.resource { min-width: 112px; padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,.045); }
+.resource-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 5px; color: var(--ink-muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.resource-label strong { color: var(--ink); font-size: 12px; }
+.meter { height: 3px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.1); }
+.meter span { display: block; height: 100%; border-radius: inherit; }
+.resource.vitality .meter span { width: 100%; background: #d96c59; }
+.resource.spring .meter span { width: 78%; background: #8d78d4; }
+.resource.water .meter span { width: 86%; background: var(--water); }
+.time-card { grid-column: 3; justify-self: end; align-self: start; min-width: 190px; padding: 12px 14px; border-radius: 20px 6px 20px 20px; pointer-events: auto; }
+.time-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.time-copy span { display: block; color: var(--ink-muted); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.time-copy strong { display: block; margin-top: 2px; font-family: Georgia, "Times New Roman", serif; font-size: 20px; font-weight: 500; }
+.time-button, .action-button { border: 1px solid rgba(255,237,198,.18); cursor: pointer; transition: transform 160ms ease, background 160ms ease, border-color 160ms ease; }
+.time-button { width: 38px; height: 38px; border-radius: 50%; background: rgba(232,184,98,.12); color: var(--gold); font-size: 20px; }
+.time-button:hover, .action-button:hover { transform: translateY(-1px); border-color: rgba(255,237,198,.35); }
+.time-track { height: 3px; margin-top: 10px; border-radius: 999px; background: linear-gradient(90deg, #42566c, #e6a85e 22%, #f2d58d 50%, #d37e57 76%, #42566c); }
+.time-dot { width: 8px; height: 8px; margin-top: -5.5px; margin-left: calc(var(--time-progress) * 100% - 4px); border: 2px solid var(--ink); border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px rgba(232,184,98,.8); }
+.selection-card { grid-column: 1; grid-row: 3; align-self: end; width: min(320px, 100%); padding: 16px; border-radius: 20px 20px 20px 6px; pointer-events: auto; }
+.selection-card h2 { margin: 2px 0 5px; font-family: Georgia, "Times New Roman", serif; font-size: 22px; font-weight: 500; }
+.selection-card p { margin: 0; color: var(--ink-muted); font-size: 12px; line-height: 1.5; }
+.cost-row { display: flex; gap: 8px; margin-top: 13px; }
+.cost-chip { padding: 6px 9px; border: 1px solid rgba(255,255,255,.08); border-radius: 8px; background: rgba(255,255,255,.045); color: var(--ink-muted); font-size: 11px; }
+.cost-chip strong { color: var(--ink); }
+.action-button { width: 100%; margin-top: 12px; padding: 9px 12px; border-radius: 10px; background: linear-gradient(135deg, rgba(83,154,129,.55), rgba(52,102,89,.55)); color: #f7efda; font-size: 12px; font-weight: 700; letter-spacing: .06em; }
+.action-button:disabled { cursor: default; opacity: .45; transform: none; }
+.hint { grid-column: 2; grid-row: 3; justify-self: center; align-self: end; padding: 8px 13px; border-radius: 999px; color: var(--ink-muted); font-size: 11px; }
+
+@media (max-width: 760px) {
+  .hud { grid-template-columns: 1fr auto; grid-template-rows: auto auto 1fr auto; gap: 10px; padding: 10px; }
+  .brand { grid-column: 1; grid-row: 1; padding: 10px 13px 11px; }
+  .brand h1 { font-size: 26px; }
+  .time-card { grid-column: 2; grid-row: 1; min-width: 150px; padding: 9px 10px; }
+  .resource-bar { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+  .resource { flex: 1; min-width: 0; padding: 7px 9px; }
+  .resource-label { gap: 4px; letter-spacing: .05em; }
+  .selection-card { grid-column: 1 / -1; grid-row: 4; width: 100%; padding: 13px; border-radius: 16px; }
+  .selection-card h2 { font-size: 19px; }
+  .hint { display: none; }
+}
+
+@media (max-width: 430px) {
+  .brand .eyebrow { display: none; }
+  .time-card { min-width: 138px; }
+  .time-copy strong { font-size: 17px; }
+  .resource-label { font-size: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}

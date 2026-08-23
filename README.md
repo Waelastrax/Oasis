@@ -17,5 +17,4 @@ Začni v [`docs/README.md`](docs/README.md). Je to rozcestník projektu a určuj
 
 ## Stav projektu
 
-Projekt je ve fázi návrhu. Technologie a první hratelný rozsah zatím nejsou definitivně zvolené.
-
+Projekt má první 3D vizuální řez: stylizovanou hexovou poušť s oázou, dynamickým osvětlením, denní dobou, mrakovými stíny a mobilním rozhraním. Dalším krokem je oddělení herní simulace a implementace plánování cesty.

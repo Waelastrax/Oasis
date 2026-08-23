@@ -9,7 +9,7 @@ Zatím existuje pouze dokumentační základ. Perspektiva, tahový model, skryt�
 ## Předběžný technický směr
 
 - Webová aplikace optimalizovaná i pro mobilní zařízení.
-- Základ: Vite + TypeScript.
+- Základ: Vite + TypeScript, Vinext a React pro obal aplikace.
 - 3D izometrický svět používá pro pohyb a výpočet tras skrytý hexový rastr.
 - Renderer: Three.js s ortografickou kamerou.
 - Herní pravidla zůstávají v čistém TypeScriptu a nesmí záviset na Three.js.
@@ -20,12 +20,15 @@ Zatím existuje pouze dokumentační základ. Perspektiva, tahový model, skryt�
 
 ```text
 Oasis/
+├── app/            # Stránka, herní klient a UI
 ├── docs/           # Návrh, architektura a plán práce
-├── public/         # Statické soubory kopírované beze změny
-├── src/            # Herní pravidla, renderer, UI a obsah (po založení)
+├── public/         # Statické soubory
+├── build/          # Integrace produkčního sestavení
+├── scripts/        # Ověřené instalační a build skripty
+├── worker/         # Produkční serverový vstup
 ├── AGENTS.md       # Krátké instrukce pro práci na projektu
 ├── README.md       # Veřejný přehled projektu
-└── package.json    # Skripty a závislosti (po založení aplikace)
+└── package.json    # Skripty a závislosti
 ```
 
 ## Pravidla pro budoucí kód

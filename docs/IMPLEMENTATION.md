@@ -4,7 +4,7 @@
 
 ## Doporučený stack
 
-- **Vite + TypeScript** — aplikace, build a vývojový server.
+- **Vite + Vinext + React + TypeScript** — aplikace, build, komponenty rozhraní a vývojový server.
 - **Three.js** — 3D scéna, ortografická kamera, výběr objektů a animace pohybu.
 - **HTML + CSS** — ovládací prvky, panely zdrojů, tooltipy a mobilní rozhraní.
 - **Vitest** — testy herních pravidel, hexových souřadnic a deterministické náhody.
@@ -33,22 +33,18 @@ Stejný výpočet ceny se použije pro náhled i skutečné provedení. UI tak n
 ## Navržená struktura zdrojového kódu
 
 ```text
-src/
-├── app/                 # spuštění aplikace a propojení vrstev
-├── game/
-│   ├── state/           # GameState, hráč, expedice a uložený postup
-│   ├── actions/         # náhled a provedení pohybu, sběru a kouzel
-│   ├── systems/         # voda, vyčerpání, kořist, Pramen a smrt
-│   ├── hex/             # souřadnice, sousedé, vzdálenost a hledání cesty
-│   └── random/          # generátor náhody se seedem
-├── content/             # datové definice terénů, lokací, zdrojů a kouzel
-├── render/              # Three.js scéna, kamera, modely a animace
-├── ui/                  # DOM panely, tooltipy a ovládání
-├── persistence/         # verzované ukládání a načítání
-└── main.ts
+app/                     # aktuální stránka, Three.js scéna a UI
+game/                    # budoucí čistá herní simulace
+├── state/               # GameState, hráč, expedice a uložený postup
+├── actions/             # náhled a provedení pohybu, sběru a kouzel
+├── systems/             # voda, vyčerpání, kořist, Pramen a smrt
+├── hex/                 # souřadnice, sousedé, vzdálenost a hledání cesty
+└── random/              # generátor náhody se seedem
+content/                 # datové definice terénů, lokací, zdrojů a kouzel
+persistence/             # verzované ukládání a načítání
 ```
 
-Pro první prototyp není potřeba ECS, fyzikální engine ani globální stavová knihovna.
+První vizuální řez zůstává v `app/oasis-game.tsx`. Při implementaci skutečných pravidel se simulace postupně přesune do samostatných modulů výše. Není potřeba ECS, fyzikální engine ani globální stavová knihovna.
 
 ## Herní stav
 
