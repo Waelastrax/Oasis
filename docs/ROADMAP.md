@@ -7,7 +7,7 @@
 - [x] Založit dokumentační základ repozitáře.
 - [x] Upřesnit perspektivu, tahové ovládání a skrytý hexový rastr.
 - [x] Navrhnout nejmenší hratelnou verzi expedice.
-- [ ] Potvrdit Three.js jako renderer.
+- [x] Potvrdit Three.js jako renderer.
 - [ ] Založit aplikaci a vytvořit první hratelný prototyp.
 
 ## První hratelný milník
