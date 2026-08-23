@@ -151,6 +151,22 @@ První prototyp záměrně neobsahuje stavění ani plný boj. Má ověřit hlav
 
 Teprve po ověření této smyčky následují stavby, více typů lokací, užitková kouzla a boj.
 
+### Doporučené testovací hodnoty
+
+Tyto hodnoty slouží jen k rychlému ověření smyčky a mají být uložené v konfiguračních datech:
+
+- mapa má poloměr 8 hexů a při založení hry se jednou vygeneruje ze seedu,
+- mapa i objevený obsah zůstávají mezi expedicemi trvalé,
+- hráč začíná s 20 Vitality, 10 body Pramene a 12 jednotkami vody,
+- pro první verzi stojí 1 Energie 1 jednotku vody,
+- každé 3 body suché Energie vyvolají jeden hod vyčerpání,
+- ztráta Vitality má rozsah 2–8,
+- ztráta Pramene má rozsah 1–3,
+- ztráta kořisti odebere 1–3 kusy z dostupného nechráněného nákladu,
+- teleport stojí 6 bodů Pramene.
+
+Trvalá mapa je doporučená proto, aby měl průzkum hodnotu a hráč si vytvářel znalost okolí oázy. Seed umožní svět přesně reprodukovat při testování.
+
 ## Testy, které mají vzniknout současně s prototypem
 
 - vzdálenost, sousedé a převody hexových souřadnic,
@@ -165,5 +181,5 @@ Teprve po ověření této smyčky následují stavby, více typů lokací, uži
 ## Rozhodnutí před zahájením kódu
 
 1. Potvrdit Three.js jako renderer.
-2. Určit, zda je mapa mezi expedicemi trvalá, nebo se částečně znovu generuje.
-3. Stanovit první pracovní hodnoty převodu Energie na vodu a prahu vyčerpání.
+2. Potvrdit, nebo upravit doporučení trvalé mapy generované jednou ze seedu.
+3. Potvrdit, nebo upravit doporučené testovací hodnoty.
