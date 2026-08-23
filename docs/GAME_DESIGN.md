@@ -56,7 +56,7 @@ Voda určuje bezpečný rozsah expedice, ale její vyčerpání výpravu automat
 Po vyčerpání vody může hráč pokračovat. Další spotřeba Energie vyvolává v intervalech hod vyčerpání. Losuje se pouze mezi zdroji, které hráč ještě má:
 
 1. ztráta části Vitality,
-2. ztráta části Esence,
+2. ztráta části Pramene,
 3. ztráta části nesené kořisti.
 
 Jednotlivé ztráty mají malý náhodný rozsah. Příklad pro budoucí balancování: ztráta 2–8 bodů z počátečních 20 bodů Vitality.
@@ -64,9 +64,9 @@ Jednotlivé ztráty mají malý náhodný rozsah. Příklad pro budoucí balanco
 ### Pravidla hodu vyčerpání
 
 - Hráč zná možné výsledky a jejich rozsahy, ale neví, který nastane.
-- Pokud Esence klesne na nulu, přestane se tato kategorie losovat.
+- Pokud Pramen klesne na nulu, přestane se tato kategorie losovat.
 - Pokud hráč nemá žádnou kořist, přestane se losovat ztráta kořisti.
-- Pokud jsou Esence i kořist vyčerpané, každý další hod zasáhne Vitalitu.
+- Pokud jsou Pramen i kořist vyčerpané, každý další hod zasáhne Vitalitu.
 - Při poklesu Vitality na nulu hráč umírá a expedice končí.
 - Přesný interval hodů a jejich pravděpodobnosti se určí prototypováním.
 
@@ -81,15 +81,15 @@ Magie je primárně užitková a tematicky vychází z oázy. Potvrzené nebo za
 - obnova vytěžené flóry v oáze,
 - teleport zpět do oázy.
 
-Teleport je spolehlivý návrat, ale stojí Esenci. V poušti lze také najít portál vedoucí zpět do oázy; jeho použití Esenci nestojí. Hráč proto může Esenci utratit za jiná kouzla a riskovat, že bude muset portál najít dříve, než zemře.
+Teleport je spolehlivý návrat, ale stojí Pramen. V poušti lze také najít portál vedoucí zpět do oázy; jeho použití Pramen nestojí. Hráč proto může Pramen utratit za jiná kouzla a riskovat, že bude muset portál najít dříve, než zemře.
 
-Obnova nebo kapacita Esence bude navázaná na hydrataci hráče. Přesná podoba vazby zatím není rozhodnutá.
+Obnova nebo kapacita Pramene bude navázaná na hydrataci hráče. Přesná podoba vazby zatím není rozhodnutá.
 
 ## Návrat a konec expedice
 
 - Hráč se nemusí fyzicky vracet přes již překonanou poušť.
-- Běžný jistý návrat zajišťuje kouzlo teleportace za cenu Esence.
-- Nalezený portál umožní návrat bez spotřeby Esence.
+- Běžný jistý návrat zajišťuje kouzlo teleportace za cenu Pramene.
+- Nalezený portál umožní návrat bez spotřeby Pramene.
 - Pokud hráč zemře, výprava končí ztrátou alespoň části okamžitého zisku.
 - Přesná pravidla zachování vybavení a kořisti po smrti zatím nejsou uzavřená.
 
@@ -108,15 +108,15 @@ Smrt může být hlavně v začátcích hry častá a očekávaná. Nemá však 
 - Boj spotřebovává Energii a tím může zkrátit bezpečný dosah výpravy.
 - Konkrétní bojový systém, prostor boje a způsob výpočtu jeho ceny zatím nejsou rozhodnuté.
 
-## Pracovní názvy zdrojů
+## Názvy zdrojů
 
-| Funkce | Pracovní název | Alternativy |
-| --- | --- | --- |
-| cena akcí | **Energie** | Výdrž, Námaha, Úsilí, Tempo, Akční body |
-| magie | **Esence** | Moc, Pramen, Síla oázy, Pramenná síla, Éter, Záře |
-| zdraví | **Vitalita** | Život, Odolnost, Kondice, Tělesná síla |
+| Funkce | Název |
+| --- | --- |
+| cena akcí | **Energie** |
+| magický zdroj oázy | **Pramen** |
+| zdraví | **Vitalita** |
 
-Názvy jsou zatím pracovní. Energie a Esence se nemají používat současně jako finální dvojice, protože jsou si příliš podobné v textu i rozhraní.
+Tyto názvy jsou potvrzené. „Pramen“ označuje množství magické síly, kterou si hráč nese z oázy; v delších textech lze použít formulaci „body Pramene“ nebo „síla Pramene“.
 
 ## Skrytý rastr: čtverce versus hexy
 
@@ -159,7 +159,6 @@ Expedice používají **hexový rastr**, protože hlavním prostorovým motivem 
 - Určit podobu a rozsah budování v oáze.
 - Navrhnout konkrétní tahový bojový systém.
 - Určit převod Energie na vodu a interval hodů vyčerpání.
-- Rozhodnout přesnou vazbu hydratace na Esenci.
+- Rozhodnout přesnou vazbu hydratace na Pramen.
 - Stanovit následky smrti, zachování vybavení a podobu meta-progressu.
 - Rozhodnout podobu mapy a procedurálního generování.
-- Potvrdit finální názvy zdrojů pro cenu akcí, magii a zdraví.
