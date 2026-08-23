@@ -16,10 +16,11 @@ const seeded = (q: number, r: number, salt = 0) => {
 };
 
 function terrainColor(range: number, q: number, r: number) {
-  const variation = seeded(q, r, 3) * 0.12 - 0.06;
-  if (range === 0) return new THREE.Color("#4a9d85");
-  if (range <= 1) return new THREE.Color("#8c9d6c").offsetHSL(variation, 0, 0);
-  if (range <= 3) return new THREE.Color("#c89d5e").offsetHSL(variation, 0, 0);
+  const variation = seeded(q, r, 3) * 0.04 - 0.02;
+  if (range === 0) return new THREE.Color("#3f916f");
+  if (range <= 1) return new THREE.Color("#64965f").offsetHSL(variation, 0, 0);
+  if (range <= 2) return new THREE.Color("#879b61").offsetHSL(variation, 0, 0);
+  if (range <= 3) return new THREE.Color("#b69a5e").offsetHSL(variation, 0, 0);
   return new THREE.Color("#b77c46").offsetHSL(variation, 0, -range * 0.006);
 }
 
@@ -59,6 +60,20 @@ function makeRock(color = "#715c48") {
   rock.castShadow = true;
   rock.receiveShadow = true;
   return rock;
+}
+
+function makeShrub(scale = 1) {
+  const shrub = new THREE.Group();
+  const material = new THREE.MeshStandardMaterial({ color: "#397553", roughness: 0.94, flatShading: true });
+  [[0, 0.16, 0], [0.16, 0.1, 0.06], [-0.13, 0.09, -0.05]].forEach(([x, y, z], index) => {
+    const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(index === 0 ? 0.22 : 0.17, 0), material);
+    crown.position.set(x, y, z);
+    crown.scale.y = 0.72;
+    crown.castShadow = true;
+    shrub.add(crown);
+  });
+  shrub.scale.setScalar(scale);
+  return shrub;
 }
 
 function cloudTexture() {
@@ -122,19 +137,21 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
   scene.add(world);
   const selectable: THREE.Mesh[] = [];
   const hexData = new Map<string, HexInfo>();
-  const tileGeometry = new THREE.CylinderGeometry(HEX_SIZE * 0.98, HEX_SIZE * 0.98, 0.3, 6);
+  // Tiles overlap very slightly so the logical hex grid stays invisible.
+  const tileGeometry = new THREE.CylinderGeometry(HEX_SIZE * 1.012, HEX_SIZE * 1.012, 0.3, 6);
   const titles = ["Tichá duna", "Kamenný hřbet", "Závětrná pánev", "Zlatý přesyp"];
 
   for (let q = -HEX_RADIUS; q <= HEX_RADIUS; q += 1) {
     for (let r = Math.max(-HEX_RADIUS, -q - HEX_RADIUS); r <= Math.min(HEX_RADIUS, -q + HEX_RADIUS); r += 1) {
       const range = distance(q, r);
       const position = toWorld(q, r);
-      const height = range === 0 ? 0.14 : 0.15 + seeded(q, r, 1) * 0.26;
+      const height = range <= 2 ? 0.15 : 0.16 + seeded(q, r, 1) * 0.1;
       const tile = new THREE.Mesh(tileGeometry, new THREE.MeshStandardMaterial({ color: terrainColor(range, q, r), roughness: 0.96, flatShading: true }));
       tile.position.set(position.x, height * 0.5 - 0.19, position.z);
       tile.scale.y = height / 0.3;
       tile.receiveShadow = true;
       tile.userData.hexKey = `${q},${r}`;
+      tile.userData.topY = height - 0.19;
       world.add(tile);
       selectable.push(tile);
       hexData.set(`${q},${r}`, {
@@ -152,18 +169,24 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
         rock.rotation.y = seeded(q, r, 6) * Math.PI;
         world.add(rock);
       }
+      if (range > 0 && range <= 2 && seeded(q, r, 28) > 0.2) {
+        const shrub = makeShrub(0.72 + seeded(q, r, 29) * 0.55);
+        shrub.position.set(position.x - 0.28 + seeded(q, r, 30) * 0.5, height - 0.15, position.z - 0.25 + seeded(q, r, 31) * 0.46);
+        shrub.rotation.y = seeded(q, r, 32) * Math.PI * 2;
+        world.add(shrub);
+      }
     }
   }
 
-  const water = new THREE.Mesh(new THREE.CylinderGeometry(0.86, 0.9, 0.08, 32), new THREE.MeshPhysicalMaterial({ color: "#39b8aa", roughness: 0.2, transmission: 0.08, transparent: true, opacity: 0.93 }));
+  const water = new THREE.Mesh(new THREE.CylinderGeometry(1.02, 1.08, 0.08, 32), new THREE.MeshPhysicalMaterial({ color: "#32b9a5", roughness: 0.18, transmission: 0.1, transparent: true, opacity: 0.94 }));
   water.position.y = 0.13;
   water.receiveShadow = true;
   world.add(water);
-  [[0.72, 0.4], [-0.65, 0.44], [0.42, -0.74], [-0.58, -0.62]].forEach(([x, z], index) => {
+  [[0.92, 0.46], [-0.86, 0.52], [0.5, -0.94], [-0.76, -0.78], [1.42, -0.36], [-1.3, -0.22]].forEach(([x, z], index) => {
     const palm = makePalm();
     palm.position.set(x, 0.12, z);
     palm.rotation.y = index * 1.7;
-    palm.scale.setScalar(index % 2 === 0 ? 0.85 : 0.72);
+    palm.scale.setScalar(index % 2 === 0 ? 0.92 : 0.76);
     world.add(palm);
   });
 
@@ -197,7 +220,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
   cloudPlane.renderOrder = 3;
   world.add(cloudPlane);
 
-  const selectionRing = new THREE.Mesh(new THREE.RingGeometry(0.82, 0.93, 6), new THREE.MeshBasicMaterial({ color: "#fff0ae", transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+  const selectionRing = new THREE.Mesh(new THREE.RingGeometry(0.84, 0.94, 6, 1, Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#fff0ae", transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthTest: false }));
   selectionRing.rotation.x = -Math.PI / 2;
   selectionRing.position.y = 0.46;
   selectionRing.visible = false;
@@ -235,7 +258,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: HexInfo) => void) {
     const info = hexData.get(hit.object.userData.hexKey as string);
     if (!info) return;
     selectedPosition = hit.object.position.clone();
-    selectionRing.position.set(selectedPosition.x, 0.47, selectedPosition.z);
+    selectionRing.position.set(selectedPosition.x, Number(hit.object.userData.topY ?? 0.28) + 0.025, selectedPosition.z);
     selectionRing.visible = true;
     onSelect(info);
   };
@@ -347,7 +370,7 @@ export default function OasisGame() {
           <div className="time-track" style={{ "--time-progress": hour / 24 } as React.CSSProperties}><div className="time-dot" /></div>
         </section>
         <section className="selection-card" aria-live="polite">
-          <p className="eyebrow">{selected ? `Hex ${selected.q}, ${selected.r}` : "Průzkum"}</p>
+          <p className="eyebrow">{selected ? "Vybraná oblast" : "Průzkum"}</p>
           <h2>{selected?.title ?? "Vyber cíl cesty"}</h2>
           <p>{selected?.description ?? "Klepni na některé místo v poušti a zobrazí se jeho předběžná cena."}</p>
           <div className="cost-row">
