@@ -47,7 +47,7 @@ Cena je před potvrzením akce viditelná. Energie zároveň určuje spotřebu v
 - Pohyb se plánuje podobně jako v sérii Heroes of Might and Magic.
 - Hráč zvolí cíl a hra zobrazí trasu a její cenu.
 - Pod vizuálně souvislým 3D světem bude skrytý rastr.
-- Typ rastru ještě není uzavřený; doporučenou variantou je hexový rastr.
+- Pohyb používá hexový rastr se šesti rovnocennými směry.
 
 ## Voda a pokračování bez vody
 
@@ -112,11 +112,11 @@ Smrt může být hlavně v začátcích hry častá a očekávaná. Nemá však 
 
 | Funkce | Pracovní název | Alternativy |
 | --- | --- | --- |
-| cena akcí | **Energie** | Akce, Tempo, Síla |
-| magie | **Esence** | Síla oázy, Pramenná síla, Moc, Éter |
+| cena akcí | **Energie** | Výdrž, Námaha, Úsilí, Tempo, Akční body |
+| magie | **Esence** | Moc, Pramen, Síla oázy, Pramenná síla, Éter, Záře |
 | zdraví | **Vitalita** | Život, Odolnost, Kondice, Tělesná síla |
 
-Doporučená trojice je **Energie / Esence / Vitalita**. Názvy jsou zatím pracovní.
+Názvy jsou zatím pracovní. Energie a Esence se nemají používat současně jako finální dvojice, protože jsou si příliš podobné v textu i rozhraní.
 
 ## Skrytý rastr: čtverce versus hexy
 
@@ -150,17 +150,16 @@ Nevýhody:
 - pravoúhlé stavby se na něj vážou hůře,
 - některé vizuální trasy mohou při skrytém rastru působit mírně klikatě.
 
-### Doporučení
+### Rozhodnutí
 
-Pro expedice je doporučený **hexový rastr**, protože hlavním prostorovým motivem je postup od oázy směrem ven. Budování nemusí používat stejný rastr; může mít vlastní jemnější čtvercovou mřížku, volné umísťování nebo kotevní body.
+Expedice používají **hexový rastr**, protože hlavním prostorovým motivem je postup od oázy směrem ven. Budování nemusí používat stejný rastr; může mít vlastní jemnější čtvercovou mřížku, volné umísťování nebo kotevní body.
 
 ## Otevřená rozhodnutí
 
-- Potvrdit hexový, nebo čtvercový skrytý rastr.
 - Určit podobu a rozsah budování v oáze.
 - Navrhnout konkrétní tahový bojový systém.
 - Určit převod Energie na vodu a interval hodů vyčerpání.
 - Rozhodnout přesnou vazbu hydratace na Esenci.
 - Stanovit následky smrti, zachování vybavení a podobu meta-progressu.
 - Rozhodnout podobu mapy a procedurálního generování.
-- Potvrdit finální názvy Esence a Vitalita.
+- Potvrdit finální názvy zdrojů pro cenu akcí, magii a zdraví.
