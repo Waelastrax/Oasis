@@ -11,6 +11,7 @@
 - [x] Založit aplikaci a vytvořit první vizuální řez.
 - [x] Oddělit hexovou simulaci od vykreslování a implementovat plánování cesty.
 - [x] Propojit pohybující se stíny mraků s náhledem ceny trasy.
+- [x] Přidat sledovací a volný režim kamery pro počítač i mobil.
 - [ ] Přidat první těžitelnou surovinu, kořist a návrat do oázy.
 
 ## První hratelný milník

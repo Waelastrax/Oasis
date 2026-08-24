@@ -1,8 +1,8 @@
 import * as THREE from "three";
 
 const TEXTURE_SIZE = 256;
-const PLANE_SIZE = 34;
-const REPEAT = 1.45;
+const PLANE_SIZE = 72;
+const REPEAT = 3.1;
 
 const seeded = (x: number, y: number, salt = 0) => {
   const value = Math.sin(x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453;
@@ -30,16 +30,20 @@ export function createCloudField(): CloudField {
     const radiusX = 20 + seeded(index, 4, 13) * 43;
     const radiusY = radiusX * (0.48 + seeded(index, 5, 14) * 0.38);
     const strength = 0.42 + seeded(index, 6, 15) * 0.42;
-    context.save();
-    context.translate(x, y);
-    context.scale(1, radiusY / radiusX);
-    const gradient = context.createRadialGradient(0, 0, radiusX * 0.08, 0, 0, radiusX);
-    gradient.addColorStop(0, `rgba(24,55,60,${strength})`);
-    gradient.addColorStop(0.5, `rgba(35,66,67,${strength * 0.72})`);
-    gradient.addColorStop(1, "rgba(45,72,70,0)");
-    context.fillStyle = gradient;
-    context.fillRect(-radiusX, -radiusX, radiusX * 2, radiusX * 2);
-    context.restore();
+    for (const offsetX of [-TEXTURE_SIZE, 0, TEXTURE_SIZE]) {
+      for (const offsetY of [-TEXTURE_SIZE, 0, TEXTURE_SIZE]) {
+        context.save();
+        context.translate(x + offsetX, y + offsetY);
+        context.scale(1, radiusY / radiusX);
+        const gradient = context.createRadialGradient(0, 0, radiusX * 0.08, 0, 0, radiusX);
+        gradient.addColorStop(0, `rgba(24,55,60,${strength})`);
+        gradient.addColorStop(0.5, `rgba(35,66,67,${strength * 0.72})`);
+        gradient.addColorStop(1, "rgba(45,72,70,0)");
+        context.fillStyle = gradient;
+        context.fillRect(-radiusX, -radiusX, radiusX * 2, radiusX * 2);
+        context.restore();
+      }
+    }
   }
 
   const pixels = context.getImageData(0, 0, TEXTURE_SIZE, TEXTURE_SIZE).data;

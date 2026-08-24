@@ -54,6 +54,9 @@ Three.js scéna a její dočasný herní stav zatím zůstávají v `app/oasis-g
 - potvrzený plynulý pohyb postavy po trase,
 - odečtení vody a posun herního času,
 - plynule se pohybující mraková maska sdílená obrazem i výpočtem stínu.
+- dva režimy kamery: plynulé sledování hráče a volný posun,
+- volná kamera ovládaná šipkami, pravým tlačítkem myši nebo dvěma prsty; gesto zároveň podporuje přiblížení,
+- bezešvá mraková textura bez viditelných hran opakování a okrajů projekční plochy.
 
 ## Herní stav
 

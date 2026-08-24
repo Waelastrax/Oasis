@@ -8,7 +8,8 @@ import { createCloudField } from "../game/systems/clouds";
 type HexInfo = { key: string; q: number; r: number; distance: number; title: string; description: string; baseEnergy: number };
 type SelectionInfo = HexInfo & { energy: number; waterCost: number; shade: number; steps: number };
 type TravelResult = { energySpent: number; waterSpent: number; newHour: number };
-type SceneApi = { setHour: (hour: number) => void; travelSelection: () => Promise<TravelResult | null> };
+type CameraMode = "follow" | "free";
+type SceneApi = { setHour: (hour: number) => void; setCameraMode: (mode: CameraMode) => void; travelSelection: () => Promise<TravelResult | null> };
 
 const HEX_RADIUS = 7;
 const HEX_SIZE = 1.08;
@@ -79,7 +80,7 @@ function makeShrub(scale = 1) {
   return shrub;
 }
 
-function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void) {
+function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void, onCameraModeChange: (mode: CameraMode) => void) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#9bc0be");
   scene.fog = new THREE.FogExp2("#b6b18f", 0.027);
@@ -94,8 +95,10 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
 
   const cameraSize = 15;
   const camera = new THREE.OrthographicCamera(-8, 8, 7.5, -7.5, 0.1, 120);
-  camera.position.set(12.5, 15.5, 14.5);
-  camera.lookAt(0, 0, 0);
+  const cameraOffset = new THREE.Vector3(12.5, 15.5, 14.5);
+  const cameraTarget = new THREE.Vector3();
+  camera.position.copy(cameraOffset);
+  camera.lookAt(cameraTarget);
   const hemisphere = new THREE.HemisphereLight("#bfe4df", "#725139", 2.15);
   scene.add(hemisphere);
   const sun = new THREE.DirectionalLight("#ffd493", 4.2);
@@ -189,7 +192,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   world.add(portal);
 
   const cloudField = createCloudField();
-  const cloudPlane = new THREE.Mesh(new THREE.PlaneGeometry(34, 34), new THREE.MeshBasicMaterial({ map: cloudField.texture, transparent: true, opacity: 0.72, depthWrite: false, side: THREE.DoubleSide }));
+  const cloudPlane = new THREE.Mesh(new THREE.PlaneGeometry(72, 72), new THREE.MeshBasicMaterial({ map: cloudField.texture, transparent: true, opacity: 0.62, depthWrite: false, side: THREE.DoubleSide }));
   cloudPlane.rotation.x = -Math.PI / 2;
   cloudPlane.position.y = 0.31;
   cloudPlane.renderOrder = 3;
@@ -217,6 +220,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   let selectedPreview: SelectionInfo | null = null;
   let movementQueue: HexCoord[] = [];
   let movementResolve: ((result: TravelResult) => void) | null = null;
+  let cameraMode: CameraMode = "follow";
   let currentHour = 9;
   let targetHour = 9;
   let frame = 0;
@@ -276,6 +280,19 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
     pathLine.visible = points.length > 1;
   };
 
+  const changeCameraMode = (mode: CameraMode, notify = false) => {
+    cameraMode = mode;
+    if (notify) onCameraModeChange(mode);
+  };
+
+  const panCamera = (horizontal: number, vertical: number) => {
+    const forward = new THREE.Vector3(-cameraOffset.x, 0, -cameraOffset.z).normalize();
+    const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+    cameraTarget.addScaledVector(right, horizontal).addScaledVector(forward, vertical);
+    cameraTarget.x = THREE.MathUtils.clamp(cameraTarget.x, -14, 14);
+    cameraTarget.z = THREE.MathUtils.clamp(cameraTarget.z, -14, 14);
+  };
+
   const selectHex = (event: PointerEvent) => {
     if (movementQueue.length > 0) return;
     const bounds = renderer.domElement.getBoundingClientRect();
@@ -294,7 +311,95 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
     showPath(selectedPath);
     onSelect(preview);
   };
-  renderer.domElement.addEventListener("pointerup", selectHex);
+
+  const pressedKeys = new Set<string>();
+  const activeTouches = new Map<number, THREE.Vector2>();
+  let rightDragging = false;
+  let lastDrag = new THREE.Vector2();
+  let lastTouchCenter: THREE.Vector2 | null = null;
+  let lastTouchDistance = 0;
+  let suppressSelectionUntil = 0;
+
+  const enterFreeMode = () => {
+    if (cameraMode === "free") return;
+    changeCameraMode("free", true);
+  };
+
+  const keyDown = (event: KeyboardEvent) => {
+    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
+    event.preventDefault();
+    pressedKeys.add(event.key);
+    enterFreeMode();
+  };
+  const keyUp = (event: KeyboardEvent) => { pressedKeys.delete(event.key); };
+  window.addEventListener("keydown", keyDown);
+  window.addEventListener("keyup", keyUp);
+
+  const pointerDown = (event: PointerEvent) => {
+    if (event.button === 2) {
+      event.preventDefault();
+      rightDragging = true;
+      lastDrag.set(event.clientX, event.clientY);
+      suppressSelectionUntil = performance.now() + 250;
+      enterFreeMode();
+      renderer.domElement.setPointerCapture(event.pointerId);
+    }
+    if (event.pointerType === "touch") {
+      activeTouches.set(event.pointerId, new THREE.Vector2(event.clientX, event.clientY));
+      renderer.domElement.setPointerCapture(event.pointerId);
+      if (activeTouches.size >= 2) {
+        suppressSelectionUntil = performance.now() + 300;
+        enterFreeMode();
+        const points = [...activeTouches.values()];
+        lastTouchCenter = points[0].clone().add(points[1]).multiplyScalar(0.5);
+        lastTouchDistance = points[0].distanceTo(points[1]);
+      }
+    }
+  };
+
+  const pointerMove = (event: PointerEvent) => {
+    if (rightDragging) {
+      const dx = event.clientX - lastDrag.x;
+      const dy = event.clientY - lastDrag.y;
+      panCamera((-dx * 0.014) / camera.zoom, (dy * 0.014) / camera.zoom);
+      lastDrag.set(event.clientX, event.clientY);
+      suppressSelectionUntil = performance.now() + 250;
+    }
+    if (event.pointerType !== "touch" || !activeTouches.has(event.pointerId)) return;
+    activeTouches.set(event.pointerId, new THREE.Vector2(event.clientX, event.clientY));
+    if (activeTouches.size < 2) return;
+    const points = [...activeTouches.values()];
+    const center = points[0].clone().add(points[1]).multiplyScalar(0.5);
+    const distance = points[0].distanceTo(points[1]);
+    if (lastTouchCenter) {
+      panCamera((-(center.x - lastTouchCenter.x) * 0.018) / camera.zoom, ((center.y - lastTouchCenter.y) * 0.018) / camera.zoom);
+    }
+    if (lastTouchDistance > 0) {
+      camera.zoom = THREE.MathUtils.clamp(camera.zoom * (distance / lastTouchDistance), 0.72, 1.65);
+      camera.updateProjectionMatrix();
+    }
+    lastTouchCenter = center;
+    lastTouchDistance = distance;
+    suppressSelectionUntil = performance.now() + 300;
+  };
+
+  const pointerUp = (event: PointerEvent) => {
+    if (event.button === 2) rightDragging = false;
+    if (event.pointerType === "touch") {
+      activeTouches.delete(event.pointerId);
+      if (activeTouches.size < 2) {
+        lastTouchCenter = null;
+        lastTouchDistance = 0;
+      }
+    }
+    if (event.button === 0 && performance.now() >= suppressSelectionUntil) selectHex(event);
+  };
+  const contextMenu = (event: MouseEvent) => event.preventDefault();
+  renderer.domElement.addEventListener("pointerdown", pointerDown);
+  renderer.domElement.addEventListener("pointermove", pointerMove);
+  renderer.domElement.addEventListener("pointerup", pointerUp);
+  renderer.domElement.addEventListener("pointercancel", pointerUp);
+  renderer.domElement.addEventListener("contextmenu", contextMenu);
   const zoom = (event: WheelEvent) => {
     event.preventDefault();
     camera.zoom = THREE.MathUtils.clamp(camera.zoom * (event.deltaY > 0 ? 0.9 : 1.1), 0.72, 1.65);
@@ -325,6 +430,14 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
     portalRing.rotation.z += delta * 0.45;
     portal.position.y = 0.75 + Math.sin(clock.elapsedTime * 1.6) * 0.035;
     water.rotation.y += delta * 0.04;
+    if (cameraMode === "free") {
+      const horizontal = Number(pressedKeys.has("ArrowRight")) - Number(pressedKeys.has("ArrowLeft"));
+      const vertical = Number(pressedKeys.has("ArrowUp")) - Number(pressedKeys.has("ArrowDown"));
+      if (horizontal || vertical) panCamera((horizontal * delta * 7) / camera.zoom, (vertical * delta * 7) / camera.zoom);
+    } else {
+      const playerWorld = world.localToWorld(player.position.clone());
+      cameraTarget.lerp(new THREE.Vector3(playerWorld.x, 0, playerWorld.z), Math.min(1, delta * 5.5));
+    }
     const nextHex = movementQueue[0];
     if (nextHex) {
       const target = toWorld(nextHex.q, nextHex.r);
@@ -351,6 +464,8 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
         }
       }
     }
+    camera.position.copy(cameraTarget).add(cameraOffset);
+    camera.lookAt(cameraTarget);
     renderer.render(scene, camera);
   };
   animate();
@@ -358,6 +473,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   return {
     api: {
       setHour: (hour: number) => { targetHour = hour; },
+      setCameraMode: (mode: CameraMode) => { changeCameraMode(mode); },
       travelSelection: () => {
         if (!selectedPreview || selectedPath.length <= 1 || movementQueue.length > 0) return Promise.resolve(null);
         movementQueue = selectedPath.slice(1);
@@ -367,7 +483,13 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
     dispose: () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
-      renderer.domElement.removeEventListener("pointerup", selectHex);
+      window.removeEventListener("keydown", keyDown);
+      window.removeEventListener("keyup", keyUp);
+      renderer.domElement.removeEventListener("pointerdown", pointerDown);
+      renderer.domElement.removeEventListener("pointermove", pointerMove);
+      renderer.domElement.removeEventListener("pointerup", pointerUp);
+      renderer.domElement.removeEventListener("pointercancel", pointerUp);
+      renderer.domElement.removeEventListener("contextmenu", contextMenu);
       renderer.domElement.removeEventListener("wheel", zoom);
       scene.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
@@ -396,12 +518,13 @@ export default function OasisGame() {
   const [selected, setSelected] = useState<SelectionInfo | null>(null);
   const [water, setWater] = useState(12);
   const [moving, setMoving] = useState(false);
+  const [cameraMode, setCameraMode] = useState<CameraMode>("follow");
   const [webglError, setWebglError] = useState(false);
 
   useEffect(() => {
     if (!host.current) return;
     try {
-      const instance = setupScene(host.current, setSelected);
+      const instance = setupScene(host.current, setSelected, setCameraMode);
       scene.current = instance.api;
       return () => { scene.current = null; instance.dispose(); };
     } catch {
@@ -429,6 +552,11 @@ export default function OasisGame() {
     }
     setMoving(false);
   };
+  const toggleCamera = () => {
+    const next = cameraMode === "follow" ? "free" : "follow";
+    setCameraMode(next);
+    scene.current?.setCameraMode(next);
+  };
 
   return (
     <main className="game-shell">
@@ -437,6 +565,10 @@ export default function OasisGame() {
       <div className="vignette" />
       <div className="hud">
         <header className="brand"><p className="eyebrow">Výprava začíná</p><h1>Oasis</h1></header>
+        <button className="camera-toggle" type="button" onClick={toggleCamera} aria-pressed={cameraMode === "follow"}>
+          <span aria-hidden="true">{cameraMode === "follow" ? "◎" : "✥"}</span>
+          <span>{cameraMode === "follow" ? "Sledovat hráče" : "Volná kamera"}</span>
+        </button>
         <section className="resource-bar" aria-label="Zdroje hráče">
           <Resource label="Vitalita" current={20} maximum={20} className="vitality" />
           <Resource label="Pramen" current={10} maximum={10} className="spring" />
@@ -459,7 +591,7 @@ export default function OasisGame() {
           {selected && selected.waterCost > water && <p className="warning">Voda cestu nepokryje. Další krok později vyvolá postih vyčerpání.</p>}
           <button className="action-button" type="button" disabled={!selected || selected.steps === 0 || moving} onClick={travel}>{moving ? "Cesta probíhá…" : selected?.steps === 0 ? "Už jsi tady" : selected ? "Vyrazit sem" : "Nejdřív vyber cíl"}</button>
         </section>
-        <div className="hint">Vyber cíl · zkontroluj trasu a cenu · potvrď výpravu</div>
+        <div className="hint">Kamera: šipky nebo pravé tlačítko · na mobilu dva prsty</div>
       </div>
     </main>
   );
