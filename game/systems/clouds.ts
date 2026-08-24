@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 const TEXTURE_SIZE = 256;
 const PLANE_SIZE = 112;
-const REPEAT = 4.8;
+const REPEAT = 2.35;
 
 const seeded = (x: number, y: number, salt = 0) => {
   const value = Math.sin(x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453;
@@ -24,25 +24,40 @@ export function createCloudField(): CloudField {
   if (!context) throw new Error("Cloud canvas is unavailable");
   context.clearRect(0, 0, TEXTURE_SIZE, TEXTURE_SIZE);
 
-  for (let index = 0; index < 34; index += 1) {
-    const x = seeded(index, 2, 11) * TEXTURE_SIZE;
-    const y = seeded(index, 3, 12) * TEXTURE_SIZE;
-    const radiusX = 20 + seeded(index, 4, 13) * 43;
-    const radiusY = radiusX * (0.48 + seeded(index, 5, 14) * 0.38);
-    const strength = 0.54 + seeded(index, 6, 15) * 0.4;
+  const drawLobe = (x: number, y: number, radiusX: number, radiusY: number, strength: number, rotation: number) => {
     for (const offsetX of [-TEXTURE_SIZE, 0, TEXTURE_SIZE]) {
       for (const offsetY of [-TEXTURE_SIZE, 0, TEXTURE_SIZE]) {
         context.save();
         context.translate(x + offsetX, y + offsetY);
+        context.rotate(rotation);
         context.scale(1, radiusY / radiusX);
-        const gradient = context.createRadialGradient(0, 0, radiusX * 0.08, 0, 0, radiusX);
+        const gradient = context.createRadialGradient(0, 0, radiusX * 0.04, 0, 0, radiusX);
         gradient.addColorStop(0, `rgba(50,52,57,${strength})`);
-        gradient.addColorStop(0.5, `rgba(61,62,65,${strength * 0.72})`);
+        gradient.addColorStop(0.42, `rgba(57,59,63,${strength * 0.86})`);
+        gradient.addColorStop(0.72, `rgba(65,65,67,${strength * 0.46})`);
         gradient.addColorStop(1, "rgba(72,70,68,0)");
         context.fillStyle = gradient;
         context.fillRect(-radiusX, -radiusX, radiusX * 2, radiusX * 2);
         context.restore();
       }
+    }
+  };
+
+  // A few multi-lobed banks create broad shade, articulated edges and equally broad clearings.
+  for (let bank = 0; bank < 6; bank += 1) {
+    const centerX = seeded(bank, 2, 11) * TEXTURE_SIZE;
+    const centerY = seeded(bank, 3, 12) * TEXTURE_SIZE;
+    const angle = seeded(bank, 4, 13) * Math.PI;
+    const lobeCount = 4 + Math.floor(seeded(bank, 5, 14) * 3);
+    for (let lobe = 0; lobe < lobeCount; lobe += 1) {
+      const along = (seeded(bank * 11 + lobe, 6, 15) - 0.5) * 78;
+      const across = (seeded(bank * 13 + lobe, 7, 16) - 0.5) * 38;
+      const x = centerX + Math.cos(angle) * along - Math.sin(angle) * across;
+      const y = centerY + Math.sin(angle) * along + Math.cos(angle) * across;
+      const radiusX = 22 + seeded(bank * 17 + lobe, 8, 17) * 25;
+      const radiusY = radiusX * (0.45 + seeded(bank * 19 + lobe, 9, 18) * 0.35);
+      const strength = 0.48 + seeded(bank * 23 + lobe, 10, 19) * 0.32;
+      drawLobe(x, y, radiusX, radiusY, strength, angle + (seeded(bank, lobe, 20) - 0.5) * 0.7);
     }
   }
 
