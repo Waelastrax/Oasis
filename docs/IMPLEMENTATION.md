@@ -57,6 +57,8 @@ Three.js scéna a její dočasný herní stav zatím zůstávají v `app/oasis-g
 - dva režimy kamery: plynulé sledování hráče a volný posun,
 - volná kamera ovládaná šipkami, pravým tlačítkem myši nebo dvěma prsty; gesto zároveň podporuje přiblížení,
 - bezešvá mraková textura bez viditelných hran opakování a okrajů projekční plochy.
+- potvrzení naplánované cesty tlačítkem nebo druhým klepnutím na stejný cíl,
+- rozšířená mapa a oáza se startem hráče na suchém poli vedle jezírka.
 
 ## Herní stav
 

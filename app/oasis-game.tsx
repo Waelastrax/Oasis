@@ -11,8 +11,9 @@ type TravelResult = { energySpent: number; waterSpent: number; newHour: number }
 type CameraMode = "follow" | "free";
 type SceneApi = { setHour: (hour: number) => void; setCameraMode: (mode: CameraMode) => void; travelSelection: () => Promise<TravelResult | null> };
 
-const HEX_RADIUS = 7;
+const HEX_RADIUS = 10;
 const HEX_SIZE = 1.08;
+const START_HEX: HexCoord = { q: 1, r: 0 };
 const toWorld = (q: number, r: number) => new THREE.Vector3(HEX_SIZE * Math.sqrt(3) * (q + r / 2), 0, HEX_SIZE * 1.5 * r);
 const seeded = (q: number, r: number, salt = 0) => {
   const value = Math.sin(q * 127.1 + r * 311.7 + salt * 74.7) * 43758.5453;
@@ -23,8 +24,9 @@ function terrainColor(range: number, q: number, r: number) {
   const variation = seeded(q, r, 3) * 0.04 - 0.02;
   if (range === 0) return new THREE.Color("#3f916f");
   if (range <= 1) return new THREE.Color("#64965f").offsetHSL(variation, 0, 0);
-  if (range <= 2) return new THREE.Color("#879b61").offsetHSL(variation, 0, 0);
-  if (range <= 3) return new THREE.Color("#b69a5e").offsetHSL(variation, 0, 0);
+  if (range <= 2) return new THREE.Color("#78965e").offsetHSL(variation, 0, 0);
+  if (range <= 3) return new THREE.Color("#929d62").offsetHSL(variation, 0, 0);
+  if (range <= 4) return new THREE.Color("#b69a5e").offsetHSL(variation, 0, 0);
   return new THREE.Color("#b77c46").offsetHSL(variation, 0, -range * 0.006);
 }
 
@@ -80,7 +82,7 @@ function makeShrub(scale = 1) {
   return shrub;
 }
 
-function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void, onCameraModeChange: (mode: CameraMode) => void) {
+function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void, onCameraModeChange: (mode: CameraMode) => void, onConfirmSelection: () => void) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#9bc0be");
   scene.fog = new THREE.FogExp2("#b6b18f", 0.027);
@@ -93,7 +95,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   host.appendChild(renderer.domElement);
 
-  const cameraSize = 15;
+  const cameraSize = 18;
   const camera = new THREE.OrthographicCamera(-8, 8, 7.5, -7.5, 0.1, 120);
   const cameraOffset = new THREE.Vector3(12.5, 15.5, 14.5);
   const cameraTarget = new THREE.Vector3();
@@ -147,7 +149,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
         rock.rotation.y = seeded(q, r, 6) * Math.PI;
         world.add(rock);
       }
-      if (range > 0 && range <= 2 && seeded(q, r, 28) > 0.2) {
+      if (range > 0 && range <= 3 && seeded(q, r, 28) > 0.2) {
         const shrub = makeShrub(0.72 + seeded(q, r, 29) * 0.55);
         shrub.position.set(position.x - 0.28 + seeded(q, r, 30) * 0.5, height - 0.15, position.z - 0.25 + seeded(q, r, 31) * 0.46);
         shrub.rotation.y = seeded(q, r, 32) * Math.PI * 2;
@@ -156,11 +158,11 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
     }
   }
 
-  const water = new THREE.Mesh(new THREE.CylinderGeometry(1.02, 1.08, 0.08, 32), new THREE.MeshPhysicalMaterial({ color: "#32b9a5", roughness: 0.18, transmission: 0.1, transparent: true, opacity: 0.94 }));
+  const water = new THREE.Mesh(new THREE.CylinderGeometry(1.48, 1.58, 0.08, 40), new THREE.MeshPhysicalMaterial({ color: "#32b9a5", roughness: 0.18, transmission: 0.1, transparent: true, opacity: 0.94 }));
   water.position.y = 0.13;
   water.receiveShadow = true;
   world.add(water);
-  [[0.92, 0.46], [-0.86, 0.52], [0.5, -0.94], [-0.76, -0.78], [1.42, -0.36], [-1.3, -0.22]].forEach(([x, z], index) => {
+  [[1.42, 0.68], [-1.34, 0.78], [0.74, -1.46], [-1.14, -1.22], [1.86, -0.5], [-1.82, -0.38], [0.2, 1.7], [-0.22, -1.9]].forEach(([x, z], index) => {
     const palm = makePalm();
     palm.position.set(x, 0.12, z);
     palm.rotation.y = index * 1.7;
@@ -180,7 +182,8 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   scarf.rotation.x = Math.PI / 2;
   scarf.castShadow = true;
   player.add(robe, head, scarf);
-  player.position.set(0.2, 0.12, 0.1);
+  const playerStart = toWorld(START_HEX.q, START_HEX.r);
+  player.position.set(playerStart.x, 0.12, playerStart.z);
   world.add(player);
 
   const portalPosition = toWorld(3, -2);
@@ -192,7 +195,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   world.add(portal);
 
   const cloudField = createCloudField();
-  const cloudPlane = new THREE.Mesh(new THREE.PlaneGeometry(72, 72), new THREE.MeshBasicMaterial({ map: cloudField.texture, transparent: true, opacity: 0.62, depthWrite: false, side: THREE.DoubleSide }));
+  const cloudPlane = new THREE.Mesh(new THREE.PlaneGeometry(72, 72), new THREE.MeshBasicMaterial({ map: cloudField.texture, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide }));
   cloudPlane.rotation.x = -Math.PI / 2;
   cloudPlane.position.y = 0.31;
   cloudPlane.renderOrder = 3;
@@ -215,7 +218,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let selectedPosition = new THREE.Vector3();
-  let currentHex: HexCoord = { q: 0, r: 0 };
+  let currentHex: HexCoord = { ...START_HEX };
   let selectedPath: HexCoord[] = [];
   let selectedPreview: SelectionInfo | null = null;
   let movementQueue: HexCoord[] = [];
@@ -302,6 +305,10 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
     if (!hit) return;
     const info = hexData.get(hit.object.userData.hexKey as string);
     if (!info) return;
+    if (selectedPreview?.key === info.key && selectedPath.length > 1) {
+      onConfirmSelection();
+      return;
+    }
     selectedPosition = hit.object.position.clone();
     selectionRing.position.set(selectedPosition.x, Number(hit.object.userData.topY ?? 0.28) + 0.025, selectedPosition.z);
     selectionRing.visible = true;
@@ -461,6 +468,8 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
           selectionRing.visible = false;
           movementResolve(result);
           movementResolve = null;
+          selectedPreview = null;
+          selectedPath = [];
         }
       }
     }
@@ -521,10 +530,23 @@ export default function OasisGame() {
   const [cameraMode, setCameraMode] = useState<CameraMode>("follow");
   const [webglError, setWebglError] = useState(false);
 
+  const performTravel = async (api: SceneApi | null = scene.current) => {
+    if (!api) return;
+    setMoving(true);
+    const result = await api.travelSelection();
+    if (result) {
+      setWater((current) => Math.max(0, current - result.waterSpent));
+      setHour(Math.round(result.newHour * 10) / 10);
+      setSelected(null);
+    }
+    setMoving(false);
+  };
+
   useEffect(() => {
     if (!host.current) return;
     try {
-      const instance = setupScene(host.current, setSelected, setCameraMode);
+      let instance: ReturnType<typeof setupScene>;
+      instance = setupScene(host.current, setSelected, setCameraMode, () => { void performTravel(instance.api); });
       scene.current = instance.api;
       return () => { scene.current = null; instance.dispose(); };
     } catch {
@@ -541,17 +563,6 @@ export default function OasisGame() {
   const wholeHour = Math.floor(hour) % 24;
   const minutes = Math.round((hour - Math.floor(hour)) * 60) % 60;
   const hourLabel = `${String(wholeHour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-  const travel = async () => {
-    if (!selected || moving) return;
-    setMoving(true);
-    const result = await scene.current?.travelSelection();
-    if (result) {
-      setWater((current) => Math.max(0, current - result.waterSpent));
-      setHour(Math.round(result.newHour * 10) / 10);
-      setSelected(null);
-    }
-    setMoving(false);
-  };
   const toggleCamera = () => {
     const next = cameraMode === "follow" ? "free" : "follow";
     setCameraMode(next);
@@ -589,9 +600,9 @@ export default function OasisGame() {
             <span className="cost-chip">Kroky <strong>{selected?.steps ?? "—"}</strong></span>
           </div>
           {selected && selected.waterCost > water && <p className="warning">Voda cestu nepokryje. Další krok později vyvolá postih vyčerpání.</p>}
-          <button className="action-button" type="button" disabled={!selected || selected.steps === 0 || moving} onClick={travel}>{moving ? "Cesta probíhá…" : selected?.steps === 0 ? "Už jsi tady" : selected ? "Vyrazit sem" : "Nejdřív vyber cíl"}</button>
+          <button className="action-button" type="button" disabled={!selected || selected.steps === 0 || moving} onClick={() => { void performTravel(); }}>{moving ? "Cesta probíhá…" : selected?.steps === 0 ? "Už jsi tady" : selected ? "Vyrazit sem" : "Nejdřív vyber cíl"}</button>
         </section>
-        <div className="hint">Kamera: šipky nebo pravé tlačítko · na mobilu dva prsty</div>
+        <div className="hint">Pohyb: vyber cíl a klepni znovu · kamera: šipky, pravé tlačítko nebo dva prsty</div>
       </div>
     </main>
   );

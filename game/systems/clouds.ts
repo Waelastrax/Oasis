@@ -29,7 +29,7 @@ export function createCloudField(): CloudField {
     const y = seeded(index, 3, 12) * TEXTURE_SIZE;
     const radiusX = 20 + seeded(index, 4, 13) * 43;
     const radiusY = radiusX * (0.48 + seeded(index, 5, 14) * 0.38);
-    const strength = 0.42 + seeded(index, 6, 15) * 0.42;
+    const strength = 0.54 + seeded(index, 6, 15) * 0.4;
     for (const offsetX of [-TEXTURE_SIZE, 0, TEXTURE_SIZE]) {
       for (const offsetY of [-TEXTURE_SIZE, 0, TEXTURE_SIZE]) {
         context.save();
