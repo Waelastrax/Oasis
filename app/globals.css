@@ -17,13 +17,15 @@ button { color: inherit; font: inherit; }
 .webgl-fallback { position: absolute; inset: 44% auto auto 50%; transform: translate(-50%, -50%); max-width: 360px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 14px; background: rgba(24,22,20,.86); color: var(--ink-muted); text-align: center; font-size: 13px; }
 .vignette { pointer-events: none; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,13,13,.22), transparent 22%, transparent 74%, rgba(7,10,10,.5)), radial-gradient(circle at center, transparent 48%, rgba(6,8,8,.48) 118%); }
 .hud { position: absolute; inset: 0; pointer-events: none; padding: clamp(12px, 2vw, 24px); display: grid; grid-template-columns: minmax(190px, 280px) 1fr minmax(190px, 280px); grid-template-rows: auto 1fr auto; gap: 16px; }
-.brand, .resource-bar, .selection-card, .time-card, .camera-toggle, .hint { border: 1px solid var(--line); background: var(--glass); box-shadow: 0 16px 44px rgba(4,6,6,.28); backdrop-filter: blur(13px) saturate(110%); -webkit-backdrop-filter: blur(13px) saturate(110%); }
+.brand, .resource-bar, .selection-card, .time-card, .camera-toggle, .visual-toggle, .hint { border: 1px solid var(--line); background: var(--glass); box-shadow: 0 16px 44px rgba(4,6,6,.28); backdrop-filter: blur(13px) saturate(110%); -webkit-backdrop-filter: blur(13px) saturate(110%); }
 .brand { grid-column: 1; align-self: start; width: max-content; max-width: 100%; padding: 12px 16px 13px; border-radius: 6px 20px 20px 20px; }
 .eyebrow { margin: 0 0 4px; color: var(--gold); font-size: 10px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; }
 .brand h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(25px, 4vw, 38px); font-weight: 500; letter-spacing: .06em; line-height: .95; }
-.camera-toggle { grid-column: 1; grid-row: 2; align-self: start; justify-self: start; display: flex; align-items: center; gap: 8px; margin-top: -5px; padding: 8px 12px; border-radius: 999px; color: var(--ink-muted); cursor: pointer; pointer-events: auto; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
-.camera-toggle:hover { border-color: rgba(255,237,198,.35); color: var(--ink); }
-.camera-toggle > span:first-child { color: var(--gold); font-size: 16px; line-height: 1; }
+.camera-toggle, .visual-toggle { grid-column: 1; grid-row: 2; align-self: start; justify-self: start; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; color: var(--ink-muted); cursor: pointer; pointer-events: auto; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+.camera-toggle { margin-top: -5px; }
+.visual-toggle { margin-top: 35px; }
+.camera-toggle:hover, .visual-toggle:hover { border-color: rgba(255,237,198,.35); color: var(--ink); }
+.camera-toggle > span:first-child, .visual-toggle > span:first-child { color: var(--gold); font-size: 16px; line-height: 1; }
 .resource-bar { grid-column: 2; justify-self: center; align-self: start; display: flex; gap: 4px; padding: 5px; border-radius: 999px; }
 .resource { min-width: 112px; padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,.045); }
 .resource-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 5px; color: var(--ink-muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
@@ -58,6 +60,7 @@ button { color: inherit; font: inherit; }
   .brand { grid-column: 1; grid-row: 1; padding: 10px 13px 11px; }
   .brand h1 { font-size: 26px; }
   .camera-toggle { grid-column: 1; grid-row: 3; margin-top: 0; padding: 7px 10px; }
+  .visual-toggle { grid-column: 1; grid-row: 3; margin: 0 0 0 46px; padding: 7px 10px; }
   .time-card { grid-column: 2; grid-row: 1; min-width: 150px; padding: 9px 10px; }
   .resource-bar { grid-column: 1 / -1; grid-row: 2; width: 100%; }
   .resource { flex: 1; min-width: 0; padding: 7px 9px; }
@@ -72,8 +75,8 @@ button { color: inherit; font: inherit; }
   .time-card { min-width: 138px; }
   .time-copy strong { font-size: 17px; }
   .resource-label { font-size: 8px; }
-  .camera-toggle > span:last-child { display: none; }
-  .camera-toggle { width: 36px; height: 36px; justify-content: center; padding: 0; }
+  .camera-toggle > span:last-child, .visual-toggle > span:last-child { display: none; }
+  .camera-toggle, .visual-toggle { width: 36px; height: 36px; justify-content: center; padding: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

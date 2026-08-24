@@ -9,7 +9,8 @@ type HexInfo = { key: string; q: number; r: number; distance: number; title: str
 type SelectionInfo = HexInfo & { energy: number; waterCost: number; shade: number; steps: number };
 type TravelResult = { energySpent: number; waterSpent: number; newHour: number };
 type CameraMode = "follow" | "free";
-type SceneApi = { setHour: (hour: number) => void; setCameraMode: (mode: CameraMode) => void; travelSelection: () => Promise<TravelResult | null> };
+type VisualMode = "classic" | "natural";
+type SceneApi = { setHour: (hour: number) => void; setCameraMode: (mode: CameraMode) => void; setVisualMode: (mode: VisualMode) => void; travelSelection: () => Promise<TravelResult | null> };
 
 const HEX_RADIUS = 15;
 const HEX_SIZE = 1.08;
@@ -82,6 +83,72 @@ function makeShrub(scale = 1) {
   return shrub;
 }
 
+function createNaturalTerrain() {
+  const width = 66;
+  const depth = 58;
+  const columns = 96;
+  const rows = 84;
+  const positions: number[] = [];
+  const colors: number[] = [];
+  const indices: number[] = [];
+  const sand = new THREE.Color();
+  const dunes = Array.from({ length: 17 }, (_, index) => ({
+    x: (seeded(index, 2, 41) - 0.5) * 52,
+    z: (seeded(index, 3, 42) - 0.5) * 44,
+    length: 4.6 + seeded(index, 4, 43) * 6.8,
+    width: 1.7 + seeded(index, 5, 44) * 2.4,
+    height: 0.38 + seeded(index, 6, 45) * 0.82,
+    angle: -0.34 + seeded(index, 7, 46) * 0.28,
+  })).filter((dune) => Math.hypot(dune.x, dune.z) > 7.5);
+
+  const sampleSurface = (x: number, z: number) => {
+    const oasisFade = THREE.MathUtils.smoothstep(Math.hypot(x * 0.88, z), 5.2, 8.4);
+    let height = (Math.sin(x * 0.29 + z * 0.13) + Math.sin(z * 0.37 - x * 0.08)) * 0.035;
+    let crest = 0;
+    for (const dune of dunes) {
+      const dx = x - dune.x;
+      const dz = z - dune.z;
+      const along = dx * Math.cos(dune.angle) + dz * Math.sin(dune.angle);
+      const across = -dx * Math.sin(dune.angle) + dz * Math.cos(dune.angle);
+      const lengthFade = Math.exp(-Math.pow(along / dune.length, 4));
+      const windward = across < 0 ? Math.exp(-Math.pow(across / dune.width, 2)) : Math.exp(-Math.pow(across / (dune.width * 0.48), 2));
+      height += dune.height * lengthFade * windward * oasisFade;
+      crest = Math.max(crest, lengthFade * Math.exp(-Math.pow(across / (dune.width * 0.18), 2)) * oasisFade);
+    }
+    return { height: height * oasisFade - 0.2, crest, oasisFade };
+  };
+
+  for (let row = 0; row <= rows; row += 1) {
+    for (let column = 0; column <= columns; column += 1) {
+      const x = (column / columns - 0.5) * width;
+      const z = (row / rows - 0.5) * depth;
+      const { height, crest, oasisFade } = sampleSurface(x, z);
+      positions.push(x, height, z);
+      const warmth = 0.53 + height * 0.16 + crest * 0.08 + (seeded(column, row, 47) - 0.5) * 0.035;
+      sand.setHSL(0.085, 0.49, THREE.MathUtils.clamp(warmth, 0.38, 0.68));
+      if (oasisFade < 0.72) sand.lerp(new THREE.Color("#7e995f"), (1 - oasisFade) * 0.72);
+      colors.push(sand.r, sand.g, sand.b);
+    }
+  }
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      const a = row * (columns + 1) + column;
+      const b = a + 1;
+      const c = a + columns + 1;
+      const d = c + 1;
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const terrain = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.93, metalness: 0 }));
+  terrain.receiveShadow = true;
+  return { terrain, heightAt: (x: number, z: number) => sampleSurface(x, z).height };
+}
+
 function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void, onCameraModeChange: (mode: CameraMode) => void, onConfirmSelection: () => void) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#9bc0be");
@@ -117,6 +184,11 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   const selectable: THREE.Mesh[] = [];
   const hexData = new Map<string, HexInfo>();
   const tileByKey = new Map<string, THREE.Mesh>();
+  const classicTerrain = new THREE.Group();
+  const naturalSurface = createNaturalTerrain();
+  const naturalTerrain = naturalSurface.terrain;
+  naturalTerrain.visible = false;
+  world.add(naturalTerrain, classicTerrain);
   // Tiles overlap very slightly so the logical hex grid stays invisible.
   const tileGeometry = new THREE.CylinderGeometry(HEX_SIZE * 1.012, HEX_SIZE * 1.012, 0.3, 6);
   const titles = ["Tichá duna", "Kamenný hřbet", "Závětrná pánev", "Zlatý přesyp"];
@@ -132,7 +204,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
       tile.receiveShadow = true;
       tile.userData.hexKey = `${q},${r}`;
       tile.userData.topY = height - 0.19;
-      world.add(tile);
+      classicTerrain.add(tile);
       selectable.push(tile);
       tileByKey.set(`${q},${r}`, tile);
       hexData.set(`${q},${r}`, {
@@ -162,6 +234,12 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   water.position.y = 0.13;
   water.receiveShadow = true;
   world.add(water);
+  const naturalWater = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.7, 0.075, 64), new THREE.MeshPhysicalMaterial({ color: "#39bda9", roughness: 0.13, transmission: 0.16, transparent: true, opacity: 0.9 }));
+  naturalWater.scale.set(1.38, 1, 0.82);
+  naturalWater.position.y = 0.1;
+  naturalWater.receiveShadow = true;
+  naturalWater.visible = false;
+  world.add(naturalWater);
   [[1.42, 0.68], [-1.34, 0.78], [0.74, -1.46], [-1.14, -1.22], [1.86, -0.5], [-1.82, -0.38], [0.2, 1.7], [-0.22, -1.9]].forEach(([x, z], index) => {
     const palm = makePalm();
     palm.position.set(x, 0.12, z);
@@ -224,6 +302,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   let movementQueue: HexCoord[] = [];
   let movementResolve: ((result: TravelResult) => void) | null = null;
   let cameraMode: CameraMode = "follow";
+  let visualMode: VisualMode = "classic";
   let currentHour = 9;
   let targetHour = 9;
   let frame = 0;
@@ -239,7 +318,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
     hemisphere.color.set(daylight > 0.3 ? "#bfe4df" : "#435775");
     hemisphere.groundColor.set(daylight > 0.3 ? "#725139" : "#171b2b");
     scene.background = new THREE.Color("#1a253a").lerp(new THREE.Color("#9bc0be"), daylight);
-    if (scene.fog instanceof THREE.FogExp2) scene.fog.color.copy(new THREE.Color("#253143").lerp(new THREE.Color("#b6b18f"), daylight));
+    if (scene.fog instanceof THREE.FogExp2) scene.fog.color.copy(new THREE.Color("#253143").lerp(new THREE.Color(visualMode === "natural" ? "#c9ad7f" : "#b6b18f"), daylight));
     renderer.toneMappingExposure = 0.78 + daylight * 0.34;
   };
   lightAt(currentHour);
@@ -275,7 +354,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
     const points = path.map((coord) => {
       const position = toWorld(coord.q, coord.r);
       const tile = tileByKey.get(hexKey(coord));
-      position.y = Number(tile?.userData.topY ?? 0.08) + 0.08;
+      position.y = visualMode === "natural" ? naturalSurface.heightAt(position.x, position.z) + 0.09 : Number(tile?.userData.topY ?? 0.08) + 0.08;
       return position;
     });
     pathLine.geometry.dispose();
@@ -286,6 +365,19 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   const changeCameraMode = (mode: CameraMode, notify = false) => {
     cameraMode = mode;
     if (notify) onCameraModeChange(mode);
+  };
+
+  const changeVisualMode = (mode: VisualMode) => {
+    visualMode = mode;
+    classicTerrain.visible = mode === "classic";
+    naturalTerrain.visible = mode === "natural";
+    water.visible = mode === "classic";
+    naturalWater.visible = mode === "natural";
+    scene.fog = new THREE.FogExp2(mode === "natural" ? "#c9ad7f" : "#b6b18f", mode === "natural" ? 0.019 : 0.027);
+    const playerPosition = toWorld(currentHex.q, currentHex.r);
+    player.position.y = mode === "natural" ? naturalSurface.heightAt(playerPosition.x, playerPosition.z) + 0.31 : 0.12;
+    if (selectedPath.length > 0) showPath(selectedPath);
+    if (selectionRing.visible) selectionRing.position.y = mode === "natural" ? naturalSurface.heightAt(selectedPosition.x, selectedPosition.z) + 0.045 : Number(tileByKey.get(selectedPreview?.key ?? "")?.userData.topY ?? 0.28) + 0.025;
   };
 
   const panCamera = (horizontal: number, vertical: number) => {
@@ -310,7 +402,8 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
       return;
     }
     selectedPosition = hit.object.position.clone();
-    selectionRing.position.set(selectedPosition.x, Number(hit.object.userData.topY ?? 0.28) + 0.025, selectedPosition.z);
+    const selectedY = visualMode === "natural" ? naturalSurface.heightAt(selectedPosition.x, selectedPosition.z) + 0.045 : Number(hit.object.userData.topY ?? 0.28) + 0.025;
+    selectionRing.position.set(selectedPosition.x, selectedY, selectedPosition.z);
     selectionRing.visible = true;
     const preview = previewPath(info);
     selectedPath = preview.path;
@@ -437,6 +530,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
     portalRing.rotation.z += delta * 0.45;
     portal.position.y = 0.75 + Math.sin(clock.elapsedTime * 1.6) * 0.035;
     water.rotation.y += delta * 0.04;
+    naturalWater.rotation.y -= delta * 0.025;
     if (cameraMode === "free") {
       const horizontal = Number(pressedKeys.has("ArrowRight")) - Number(pressedKeys.has("ArrowLeft"));
       const vertical = Number(pressedKeys.has("ArrowUp")) - Number(pressedKeys.has("ArrowDown"));
@@ -448,7 +542,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
     const nextHex = movementQueue[0];
     if (nextHex) {
       const target = toWorld(nextHex.q, nextHex.r);
-      target.y = 0.12;
+      target.y = visualMode === "natural" ? naturalSurface.heightAt(target.x, target.z) + 0.31 : 0.12;
       const direction = target.clone().sub(player.position);
       const remaining = direction.length();
       if (remaining > 0.001) player.rotation.y = Math.atan2(direction.x, direction.z);
@@ -483,6 +577,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
     api: {
       setHour: (hour: number) => { targetHour = hour; },
       setCameraMode: (mode: CameraMode) => { changeCameraMode(mode); },
+      setVisualMode: (mode: VisualMode) => { changeVisualMode(mode); },
       travelSelection: () => {
         if (!selectedPreview || selectedPath.length <= 1 || movementQueue.length > 0) return Promise.resolve(null);
         movementQueue = selectedPath.slice(1);
@@ -528,6 +623,7 @@ export default function OasisGame() {
   const [water, setWater] = useState(12);
   const [moving, setMoving] = useState(false);
   const [cameraMode, setCameraMode] = useState<CameraMode>("follow");
+  const [visualMode, setVisualMode] = useState<VisualMode>("classic");
   const [webglError, setWebglError] = useState(false);
 
   const performTravel = async (api: SceneApi | null = scene.current) => {
@@ -568,6 +664,11 @@ export default function OasisGame() {
     setCameraMode(next);
     scene.current?.setCameraMode(next);
   };
+  const toggleVisual = () => {
+    const next = visualMode === "classic" ? "natural" : "classic";
+    setVisualMode(next);
+    scene.current?.setVisualMode(next);
+  };
 
   return (
     <main className="game-shell">
@@ -579,6 +680,10 @@ export default function OasisGame() {
         <button className="camera-toggle" type="button" onClick={toggleCamera} aria-pressed={cameraMode === "follow"}>
           <span aria-hidden="true">{cameraMode === "follow" ? "◎" : "✥"}</span>
           <span>{cameraMode === "follow" ? "Sledovat hráče" : "Volná kamera"}</span>
+        </button>
+        <button className="visual-toggle" type="button" onClick={toggleVisual} aria-pressed={visualMode === "natural"}>
+          <span aria-hidden="true">◒</span>
+          <span>{visualMode === "classic" ? "Přírodní vzhled" : "Klasický vzhled"}</span>
         </button>
         <section className="resource-bar" aria-label="Zdroje hráče">
           <Resource label="Vitalita" current={20} maximum={20} className="vitality" />

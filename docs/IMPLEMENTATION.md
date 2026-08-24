@@ -59,6 +59,7 @@ Three.js scéna a její dočasný herní stav zatím zůstávají v `app/oasis-g
 - bezešvá mraková textura bez viditelných hran opakování a okrajů projekční plochy.
 - potvrzení naplánované cesty tlačítkem nebo druhým klepnutím na stejný cíl,
 - oáza se startem hráče na suchém poli vedle jezírka a poušť o poloměru 15 hexů (721 polí celkem).
+- přepínatelné klasické a přírodní zobrazení nad společným herním stavem; přírodní režim používá souvislý mesh s modelovanými dunami a oválným jezírkem.
 
 ## Herní stav
 
