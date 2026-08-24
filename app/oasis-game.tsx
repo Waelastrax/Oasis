@@ -5,16 +5,27 @@ import * as THREE from "three";
 import { findHexPath, hexDistance, hexKey, type HexCoord } from "../game/hex/grid";
 import { createCloudField } from "../game/systems/clouds";
 
-type HexInfo = { key: string; q: number; r: number; distance: number; title: string; description: string; baseEnergy: number };
+type HexInfo = { key: string; q: number; r: number; distance: number; title: string; description: string; baseEnergy: number; resourceAmount?: number };
 type SelectionInfo = HexInfo & { energy: number; waterCost: number; shade: number; steps: number };
-type TravelResult = { energySpent: number; waterSpent: number; newHour: number };
+type TravelResult = { energySpent: number; waterSpent: number; newHour: number; atOasis: boolean };
+type GatherResult = { energySpent: number; waterSpent: number; newHour: number; amount: number };
+type ReturnMethod = "teleport" | "portal";
 type CameraMode = "follow" | "free";
 type VisualMode = "classic" | "natural";
-type SceneApi = { setHour: (hour: number) => void; setCameraMode: (mode: CameraMode) => void; setVisualMode: (mode: VisualMode) => void; travelSelection: () => Promise<TravelResult | null> };
+type SceneApi = {
+  setHour: (hour: number) => void;
+  setCameraMode: (mode: CameraMode) => void;
+  setVisualMode: (mode: VisualMode) => void;
+  travelSelection: () => Promise<TravelResult | null>;
+  gatherSelection: () => GatherResult | null;
+  returnToOasis: (method: ReturnMethod) => boolean;
+};
 
 const HEX_RADIUS = 15;
 const HEX_SIZE = 1.08;
 const START_HEX: HexCoord = { q: 1, r: 0 };
+const PORTAL_HEX: HexCoord = { q: 3, r: -2 };
+const PORTAL_KEY = `${PORTAL_HEX.q},${PORTAL_HEX.r}`;
 const toWorld = (q: number, r: number) => new THREE.Vector3(HEX_SIZE * Math.sqrt(3) * (q + r / 2), 0, HEX_SIZE * 1.5 * r);
 const seeded = (q: number, r: number, salt = 0) => {
   const value = Math.sin(q * 127.1 + r * 311.7 + salt * 74.7) * 43758.5453;
@@ -83,6 +94,19 @@ function makeShrub(scale = 1) {
   return shrub;
 }
 
+function makeSunstone() {
+  const cluster = new THREE.Group();
+  const material = new THREE.MeshStandardMaterial({ color: "#e8a84d", emissive: "#6d3511", emissiveIntensity: 1.25, roughness: 0.46, flatShading: true });
+  [[0, 0.34, 0, 0.18, 0.7], [0.2, 0.22, 0.08, 0.13, 0.44], [-0.18, 0.18, -0.04, 0.11, 0.36]].forEach(([x, y, z, radius, height], index) => {
+    const crystal = new THREE.Mesh(new THREE.ConeGeometry(radius, height, 5), material);
+    crystal.position.set(x, y, z);
+    crystal.rotation.z = (index - 1) * 0.18;
+    crystal.castShadow = true;
+    cluster.add(crystal);
+  });
+  return cluster;
+}
+
 function createNaturalTerrain() {
   const width = 66;
   const depth = 58;
@@ -149,7 +173,7 @@ function createNaturalTerrain() {
   return { terrain, heightAt: (x: number, z: number) => sampleSurface(x, z).height };
 }
 
-function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void, onCameraModeChange: (mode: CameraMode) => void, onConfirmSelection: () => void) {
+function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo | null) => void, onCameraModeChange: (mode: CameraMode) => void, onConfirmSelection: () => void) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#9bc0be");
   scene.fog = new THREE.FogExp2("#b6b18f", 0.027);
@@ -264,7 +288,25 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   player.position.set(playerStart.x, 0.12, playerStart.z);
   world.add(player);
 
-  const portalPosition = toWorld(3, -2);
+  const resourceVisuals = new Map<string, THREE.Group>();
+  [[2, 0], [4, -1], [5, 2], [-3, 5], [-6, 2], [8, -5], [-8, 6], [10, -4]].forEach(([q, r], index) => {
+    const key = `${q},${r}`;
+    const info = hexData.get(key);
+    const tile = tileByKey.get(key);
+    if (!info || !tile) return;
+    info.resourceAmount = 1 + Math.floor(seeded(q, r, 52) * 3);
+    info.title = "Ložisko Slunečního kamene";
+    info.description = "Magická ruda pro první rozvoj oázy. K vytěžení musíš stát přímo u ložiska.";
+    const position = toWorld(q, r);
+    const deposit = makeSunstone();
+    deposit.position.set(position.x, Math.max(Number(tile.userData.topY ?? 0.08), naturalSurface.heightAt(position.x, position.z)) + 0.02, position.z);
+    deposit.rotation.y = seeded(index, q, 53) * Math.PI * 2;
+    deposit.scale.setScalar(0.82 + seeded(index, r, 54) * 0.38);
+    world.add(deposit);
+    resourceVisuals.set(key, deposit);
+  });
+
+  const portalPosition = toWorld(PORTAL_HEX.q, PORTAL_HEX.r);
   const portal = new THREE.Group();
   const portalRing = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.09, 8, 22), new THREE.MeshStandardMaterial({ color: "#75d8c8", emissive: "#174f52", emissiveIntensity: 2.8, roughness: 0.36 }));
   portalRing.castShadow = true;
@@ -556,6 +598,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
             energySpent: selectedPreview.energy,
             waterSpent: selectedPreview.waterCost,
             newHour: (targetHour + selectedPreview.energy * 0.2) % 24,
+            atOasis: hexKey(nextHex) === hexKey(START_HEX),
           };
           targetHour = result.newHour;
           pathLine.visible = false;
@@ -582,6 +625,37 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
         if (!selectedPreview || selectedPath.length <= 1 || movementQueue.length > 0) return Promise.resolve(null);
         movementQueue = selectedPath.slice(1);
         return new Promise<TravelResult>((resolve) => { movementResolve = resolve; });
+      },
+      gatherSelection: () => {
+        if (!selectedPreview || selectedPreview.key !== hexKey(currentHex) || movementQueue.length > 0) return null;
+        const info = hexData.get(selectedPreview.key);
+        if (!info?.resourceAmount) return null;
+        const energySpent = 2;
+        info.resourceAmount -= 1;
+        if (info.resourceAmount <= 0) {
+          info.resourceAmount = 0;
+          const visual = resourceVisuals.get(info.key);
+          if (visual) visual.visible = false;
+          info.title = "Vytěžené ložisko";
+          info.description = "Ve skále už nezůstal žádný Sluneční kámen.";
+        }
+        targetHour = (targetHour + energySpent * 0.2) % 24;
+        const updated = previewPath(info);
+        selectedPreview = updated;
+        onSelect(updated);
+        return { energySpent, waterSpent: energySpent, newHour: targetHour, amount: 1 };
+      },
+      returnToOasis: (method: ReturnMethod) => {
+        if (movementQueue.length > 0 || (method === "portal" && hexKey(currentHex) !== PORTAL_KEY)) return false;
+        currentHex = { ...START_HEX };
+        const home = toWorld(START_HEX.q, START_HEX.r);
+        player.position.set(home.x, visualMode === "natural" ? naturalSurface.heightAt(home.x, home.z) + 0.31 : 0.12, home.z);
+        selectedPath = [];
+        selectedPreview = null;
+        pathLine.visible = false;
+        selectionRing.visible = false;
+        onSelect(null);
+        return true;
       },
     } satisfies SceneApi,
     dispose: () => {
@@ -621,6 +695,10 @@ export default function OasisGame() {
   const [hour, setHour] = useState(9);
   const [selected, setSelected] = useState<SelectionInfo | null>(null);
   const [water, setWater] = useState(12);
+  const [spring, setSpring] = useState(10);
+  const [cargo, setCargo] = useState(0);
+  const [storedSunstone, setStoredSunstone] = useState(0);
+  const [atOasis, setAtOasis] = useState(true);
   const [moving, setMoving] = useState(false);
   const [cameraMode, setCameraMode] = useState<CameraMode>("follow");
   const [visualMode, setVisualMode] = useState<VisualMode>("classic");
@@ -633,6 +711,7 @@ export default function OasisGame() {
     if (result) {
       setWater((current) => Math.max(0, current - result.waterSpent));
       setHour(Math.round(result.newHour * 10) / 10);
+      setAtOasis(result.atOasis);
       setSelected(null);
     }
     setMoving(false);
@@ -669,6 +748,31 @@ export default function OasisGame() {
     setVisualMode(next);
     scene.current?.setVisualMode(next);
   };
+  const gather = () => {
+    const result = scene.current?.gatherSelection();
+    if (!result) return;
+    setCargo((current) => current + result.amount);
+    setWater((current) => Math.max(0, current - result.waterSpent));
+    setHour(Math.round(result.newHour * 10) / 10);
+  };
+  const returnToOasis = (method: ReturnMethod) => {
+    if (method === "teleport" && spring < 6) return;
+    if (!scene.current?.returnToOasis(method)) return;
+    if (method === "teleport") setSpring((current) => current - 6);
+    setStoredSunstone((current) => current + cargo);
+    setCargo(0);
+    setWater(12);
+    setAtOasis(true);
+    setSelected(null);
+  };
+  const replenishAtOasis = () => {
+    setSpring(10);
+    setWater(12);
+  };
+
+  const standingOnSelection = selected?.steps === 0;
+  const canGather = Boolean(standingOnSelection && selected?.resourceAmount);
+  const canUsePortal = Boolean(standingOnSelection && selected?.key === PORTAL_KEY);
 
   return (
     <main className="game-shell">
@@ -687,9 +791,12 @@ export default function OasisGame() {
         </button>
         <section className="resource-bar" aria-label="Zdroje hráče">
           <Resource label="Vitalita" current={20} maximum={20} className="vitality" />
-          <Resource label="Pramen" current={10} maximum={10} className="spring" />
+          <Resource label="Pramen" current={spring} maximum={10} className="spring" />
           <Resource label="Voda" current={water} maximum={12} className="water" />
         </section>
+        <div className="expedition-status" aria-label="Náklad a sklad">
+          <span>Náklad <strong>{cargo}</strong></span><span>Sklad <strong>{storedSunstone}</strong> ◈</span>
+        </div>
         <section className="time-card" aria-label="Denní doba">
           <div className="time-row"><div className="time-copy"><span>{period}</span><strong>{hourLabel}</strong></div><button className="time-button" type="button" onClick={advanceTime} aria-label="Posunout čas o tři hodiny">›</button></div>
           <div className="time-track" style={{ "--time-progress": hour / 24 } as React.CSSProperties}><div className="time-dot" /></div>
@@ -705,7 +812,17 @@ export default function OasisGame() {
             <span className="cost-chip">Kroky <strong>{selected?.steps ?? "—"}</strong></span>
           </div>
           {selected && selected.waterCost > water && <p className="warning">Voda cestu nepokryje. Další krok později vyvolá postih vyčerpání.</p>}
-          <button className="action-button" type="button" disabled={!selected || selected.steps === 0 || moving} onClick={() => { void performTravel(); }}>{moving ? "Cesta probíhá…" : selected?.steps === 0 ? "Už jsi tady" : selected ? "Vyrazit sem" : "Nejdřív vyber cíl"}</button>
+          {canGather ? (
+            <button className="action-button" type="button" disabled={moving || water < 2} onClick={gather}>Vytěžit Sluneční kámen · 2 Energie</button>
+          ) : (
+            <button className="action-button" type="button" disabled={!selected || selected.steps === 0 || moving} onClick={() => { void performTravel(); }}>{moving ? "Cesta probíhá…" : selected?.steps === 0 ? "Už jsi tady" : selected ? "Vyrazit sem" : "Nejdřív vyber cíl"}</button>
+          )}
+          {canUsePortal && <button className="return-button portal-return" type="button" onClick={() => returnToOasis("portal")}>Projít portálem zdarma</button>}
+          {atOasis && spring < 10 ? (
+            <button className="return-button" type="button" onClick={replenishAtOasis}>Obnovit Pramen v oáze</button>
+          ) : (
+            <button className="return-button" type="button" disabled={atOasis || spring < 6 || moving} onClick={() => returnToOasis("teleport")}>{atOasis ? "Jsi v oáze" : spring < 6 ? "Nedostatek Pramene" : "Teleport do oázy · 6 Pramene"}</button>
+          )}
         </section>
         <div className="hint">Pohyb: vyber cíl a klepni znovu · kamera: šipky, pravé tlačítko nebo dva prsty</div>
       </div>

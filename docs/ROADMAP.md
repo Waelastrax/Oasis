@@ -12,7 +12,8 @@
 - [x] Oddělit hexovou simulaci od vykreslování a implementovat plánování cesty.
 - [x] Propojit pohybující se stíny mraků s náhledem ceny trasy.
 - [x] Přidat sledovací a volný režim kamery pro počítač i mobil.
-- [ ] Přidat první těžitelnou surovinu, kořist a návrat do oázy.
+- [x] Přidat první těžitelnou surovinu, kořist a návrat do oázy.
+- [ ] Přidat pokračování bez vody a deterministické hody vyčerpání.
 
 ## První hratelný milník
 
