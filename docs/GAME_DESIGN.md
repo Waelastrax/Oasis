@@ -40,7 +40,7 @@ Každá významná akce má cenu v **Energii**:
 - boj,
 - další fyzicky nebo časově náročné činnosti.
 
-Cena je před potvrzením akce viditelná. Energie zároveň určuje spotřebu vody. Přesný převod energie na vodu a případné modifikátory vybavením, terénem či počasím budou určeny při prototypování.
+Cena je před potvrzením akce viditelná. Akce nejprve čerpají zásobu Energie. Jakmile Energie nestačí, voda ji automaticky doplňuje v poměru **1 voda = 2 Energie** a akce spotřebuje potřebné množství vody. Návrat do oázy obnoví Vitalitu, Pramen, Energii i vodu.
 
 ### Plánování pohybu
 

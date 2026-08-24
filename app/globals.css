@@ -34,6 +34,7 @@ button { color: inherit; font: inherit; }
 .meter span { display: block; height: 100%; border-radius: inherit; }
 .resource.vitality .meter span { width: 100%; background: #d96c59; }
 .resource.spring .meter span { width: 78%; background: #8d78d4; }
+.resource.energy .meter span { background: #e8b862; }
 .resource.water .meter span { width: 86%; background: var(--water); }
 .expedition-status { grid-column: 2; grid-row: 2; align-self: start; justify-self: center; display: flex; gap: 14px; padding: 7px 12px; border-radius: 999px; color: var(--ink-muted); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
 .expedition-status strong { color: var(--ink); font-size: 12px; }

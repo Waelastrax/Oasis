@@ -81,6 +81,7 @@ interface PlayerState {
   hex: HexCoord
   vitality: number
   spring: number
+  energy: number
   water: number
   cargo: CargoStack[]
 }
@@ -122,7 +123,7 @@ interface ActionPreview {
 
 ## Energie, voda a vyčerpání
 
-Energie je jednotka ceny, nikoli další ukazatel, který musí hráč samostatně doplňovat. Pohyb, těžba, průzkum a později boj mají cenu v Energii.
+Energie je jednotka ceny i samostatná zásoba hráče. Pohyb, těžba, průzkum a později boj nejprve čerpají Energii. Když nestačí, voda ji automaticky doplní v poměru 1 voda za 2 Energie.
 
 Pro první prototyp:
 
@@ -220,7 +221,7 @@ Tyto hodnoty slouží jen k rychlému ověření smyčky a mají být uložené 
 - mapa má poloměr 15 hexů a při založení hry se jednou vygeneruje ze seedu,
 - mapa i objevený obsah zůstávají mezi expedicemi trvalé,
 - hráč začíná s 20 Vitality, 10 body Pramene a 12 jednotkami vody,
-- pro první verzi stojí 1 Energie 1 jednotku vody,
+- akce nejprve čerpají maximálně 10 bodů Energie; po jejich vyčerpání 1 voda automaticky doplní 2 Energie,
 - každé 3 body suché Energie vyvolají jeden hod vyčerpání,
 - ztráta Vitality má rozsah 2–8,
 - ztráta Pramene má rozsah 1–3,

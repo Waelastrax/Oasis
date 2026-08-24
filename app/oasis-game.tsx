@@ -7,8 +7,8 @@ import { createCloudField } from "../game/systems/clouds";
 
 type HexInfo = { key: string; q: number; r: number; distance: number; title: string; description: string; baseEnergy: number; resourceAmount?: number };
 type SelectionInfo = HexInfo & { energy: number; waterCost: number; shade: number; steps: number };
-type TravelResult = { energySpent: number; waterSpent: number; newHour: number; atOasis: boolean };
-type GatherResult = { energySpent: number; waterSpent: number; newHour: number; amount: number };
+type TravelResult = { energySpent: number; newHour: number; atOasis: boolean };
+type GatherResult = { energySpent: number; newHour: number; amount: number };
 type ReturnMethod = "teleport" | "portal";
 type CameraMode = "follow" | "free";
 type VisualMode = "classic" | "natural";
@@ -596,7 +596,6 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo | null) 
         if (movementQueue.length === 0 && selectedPreview && movementResolve) {
           const result = {
             energySpent: selectedPreview.energy,
-            waterSpent: selectedPreview.waterCost,
             newHour: (targetHour + selectedPreview.energy * 0.2) % 24,
             atOasis: hexKey(nextHex) === hexKey(START_HEX),
           };
@@ -643,7 +642,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo | null) 
         const updated = previewPath(info);
         selectedPreview = updated;
         onSelect(updated);
-        return { energySpent, waterSpent: energySpent, newHour: targetHour, amount: 1 };
+        return { energySpent, newHour: targetHour, amount: 1 };
       },
       returnToOasis: (method: ReturnMethod) => {
         if (movementQueue.length > 0 || (method === "portal" && hexKey(currentHex) !== PORTAL_KEY)) return false;
@@ -686,7 +685,8 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo | null) 
 
 function Resource({ label, current, maximum, className }: { label: string; current: number; maximum: number; className: string }) {
   const percentage = `${Math.max(0, Math.min(100, (current / maximum) * 100))}%`;
-  return <div className={`resource ${className}`}><div className="resource-label"><span>{label}</span><strong>{Math.round(current)} / {maximum}</strong></div><div className="meter"><span style={{ width: percentage }} /></div></div>;
+  const displayed = Number.isInteger(current) ? current : current.toFixed(1);
+  return <div className={`resource ${className}`}><div className="resource-label"><span>{label}</span><strong>{displayed} / {maximum}</strong></div><div className="meter"><span style={{ width: percentage }} /></div></div>;
 }
 
 export default function OasisGame() {
@@ -694,8 +694,7 @@ export default function OasisGame() {
   const scene = useRef<SceneApi | null>(null);
   const [hour, setHour] = useState(9);
   const [selected, setSelected] = useState<SelectionInfo | null>(null);
-  const [water, setWater] = useState(12);
-  const [spring, setSpring] = useState(10);
+  const [resources, setResources] = useState({ vitality: 20, spring: 10, energy: 10, water: 12 });
   const [cargo, setCargo] = useState(0);
   const [storedSunstone, setStoredSunstone] = useState(0);
   const [atOasis, setAtOasis] = useState(true);
@@ -704,12 +703,26 @@ export default function OasisGame() {
   const [visualMode, setVisualMode] = useState<VisualMode>("classic");
   const [webglError, setWebglError] = useState(false);
 
+  const spendEnergy = (cost: number) => {
+    setResources((current) => {
+      const fromEnergy = Math.min(current.energy, cost);
+      const deficit = Math.max(0, cost - fromEnergy);
+      const waterUsed = Math.min(current.water, Math.ceil(deficit / 2));
+      const convertedEnergy = waterUsed * 2;
+      return {
+        ...current,
+        energy: Math.max(0, convertedEnergy - deficit),
+        water: current.water - waterUsed,
+      };
+    });
+  };
+
   const performTravel = async (api: SceneApi | null = scene.current) => {
     if (!api) return;
     setMoving(true);
     const result = await api.travelSelection();
     if (result) {
-      setWater((current) => Math.max(0, current - result.waterSpent));
+      spendEnergy(result.energySpent);
       setHour(Math.round(result.newHour * 10) / 10);
       setAtOasis(result.atOasis);
       setSelected(null);
@@ -752,27 +765,24 @@ export default function OasisGame() {
     const result = scene.current?.gatherSelection();
     if (!result) return;
     setCargo((current) => current + result.amount);
-    setWater((current) => Math.max(0, current - result.waterSpent));
+    spendEnergy(result.energySpent);
     setHour(Math.round(result.newHour * 10) / 10);
   };
   const returnToOasis = (method: ReturnMethod) => {
-    if (method === "teleport" && spring < 6) return;
+    if (method === "teleport" && resources.spring < 6) return;
     if (!scene.current?.returnToOasis(method)) return;
-    if (method === "teleport") setSpring((current) => current - 6);
     setStoredSunstone((current) => current + cargo);
     setCargo(0);
-    setWater(12);
+    setResources({ vitality: 20, spring: 10, energy: 10, water: 12 });
     setAtOasis(true);
     setSelected(null);
-  };
-  const replenishAtOasis = () => {
-    setSpring(10);
-    setWater(12);
   };
 
   const standingOnSelection = selected?.steps === 0;
   const canGather = Boolean(standingOnSelection && selected?.resourceAmount);
   const canUsePortal = Boolean(standingOnSelection && selected?.key === PORTAL_KEY);
+  const selectedWaterCost = selected ? Math.ceil(Math.max(0, selected.energy - resources.energy) / 2) : 0;
+  const availableEnergy = resources.energy + resources.water * 2;
 
   return (
     <main className="game-shell">
@@ -790,9 +800,10 @@ export default function OasisGame() {
           <span>{visualMode === "classic" ? "Přírodní vzhled" : "Klasický vzhled"}</span>
         </button>
         <section className="resource-bar" aria-label="Zdroje hráče">
-          <Resource label="Vitalita" current={20} maximum={20} className="vitality" />
-          <Resource label="Pramen" current={spring} maximum={10} className="spring" />
-          <Resource label="Voda" current={water} maximum={12} className="water" />
+          <Resource label="Vitalita" current={resources.vitality} maximum={20} className="vitality" />
+          <Resource label="Pramen" current={resources.spring} maximum={10} className="spring" />
+          <Resource label="Energie" current={resources.energy} maximum={10} className="energy" />
+          <Resource label="Voda" current={resources.water} maximum={12} className="water" />
         </section>
         <div className="expedition-status" aria-label="Náklad a sklad">
           <span>Náklad <strong>{cargo}</strong></span><span>Sklad <strong>{storedSunstone}</strong> ◈</span>
@@ -807,22 +818,18 @@ export default function OasisGame() {
           <p>{selected?.description ?? "Klepni na některé místo v poušti a zobrazí se jeho předběžná cena."}</p>
           <div className="cost-row">
             <span className="cost-chip">Energie <strong>{selected?.energy ?? "—"}</strong></span>
-            <span className="cost-chip">Voda <strong>{selected?.waterCost ?? "—"}</strong></span>
+            <span className="cost-chip">Voda <strong>{selected ? selectedWaterCost : "—"}</strong></span>
             <span className="cost-chip">Stín <strong>{selected ? `${selected.shade} %` : "—"}</strong></span>
             <span className="cost-chip">Kroky <strong>{selected?.steps ?? "—"}</strong></span>
           </div>
-          {selected && selected.waterCost > water && <p className="warning">Voda cestu nepokryje. Další krok později vyvolá postih vyčerpání.</p>}
+          {selected && selected.energy > availableEnergy && <p className="warning">Energie ani voda celou cestu nepokryjí. Další krok později vyvolá postih vyčerpání.</p>}
           {canGather ? (
-            <button className="action-button" type="button" disabled={moving || water < 2} onClick={gather}>Vytěžit Sluneční kámen · 2 Energie</button>
+            <button className="action-button" type="button" disabled={moving || availableEnergy < 2} onClick={gather}>Vytěžit Sluneční kámen · 2 Energie</button>
           ) : (
             <button className="action-button" type="button" disabled={!selected || selected.steps === 0 || moving} onClick={() => { void performTravel(); }}>{moving ? "Cesta probíhá…" : selected?.steps === 0 ? "Už jsi tady" : selected ? "Vyrazit sem" : "Nejdřív vyber cíl"}</button>
           )}
           {canUsePortal && <button className="return-button portal-return" type="button" onClick={() => returnToOasis("portal")}>Projít portálem zdarma</button>}
-          {atOasis && spring < 10 ? (
-            <button className="return-button" type="button" onClick={replenishAtOasis}>Obnovit Pramen v oáze</button>
-          ) : (
-            <button className="return-button" type="button" disabled={atOasis || spring < 6 || moving} onClick={() => returnToOasis("teleport")}>{atOasis ? "Jsi v oáze" : spring < 6 ? "Nedostatek Pramene" : "Teleport do oázy · 6 Pramene"}</button>
-          )}
+          <button className="return-button" type="button" disabled={atOasis || resources.spring < 6 || moving} onClick={() => returnToOasis("teleport")}>{atOasis ? "Jsi v oáze" : resources.spring < 6 ? "Nedostatek Pramene" : "Teleport do oázy · 6 Pramene"}</button>
         </section>
         <div className="hint">Pohyb: vyber cíl a klepni znovu · kamera: šipky, pravé tlačítko nebo dva prsty</div>
       </div>
