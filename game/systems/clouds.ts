@@ -36,9 +36,9 @@ export function createCloudField(): CloudField {
         context.translate(x + offsetX, y + offsetY);
         context.scale(1, radiusY / radiusX);
         const gradient = context.createRadialGradient(0, 0, radiusX * 0.08, 0, 0, radiusX);
-        gradient.addColorStop(0, `rgba(24,55,60,${strength})`);
-        gradient.addColorStop(0.5, `rgba(35,66,67,${strength * 0.72})`);
-        gradient.addColorStop(1, "rgba(45,72,70,0)");
+        gradient.addColorStop(0, `rgba(50,52,57,${strength})`);
+        gradient.addColorStop(0.5, `rgba(61,62,65,${strength * 0.72})`);
+        gradient.addColorStop(1, "rgba(72,70,68,0)");
         context.fillStyle = gradient;
         context.fillRect(-radiusX, -radiusX, radiusX * 2, radiusX * 2);
         context.restore();

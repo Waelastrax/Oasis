@@ -273,7 +273,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   world.add(portal);
 
   const cloudField = createCloudField();
-  const cloudPlane = new THREE.Mesh(new THREE.PlaneGeometry(112, 112), new THREE.MeshBasicMaterial({ map: cloudField.texture, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide }));
+  const cloudPlane = new THREE.Mesh(new THREE.PlaneGeometry(112, 112), new THREE.MeshBasicMaterial({ map: cloudField.texture, transparent: true, opacity: 0.74, depthWrite: false, side: THREE.DoubleSide }));
   cloudPlane.rotation.x = -Math.PI / 2;
   cloudPlane.position.y = 0.31;
   cloudPlane.renderOrder = 3;
