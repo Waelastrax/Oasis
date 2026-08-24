@@ -11,7 +11,7 @@ type TravelResult = { energySpent: number; waterSpent: number; newHour: number }
 type CameraMode = "follow" | "free";
 type SceneApi = { setHour: (hour: number) => void; setCameraMode: (mode: CameraMode) => void; travelSelection: () => Promise<TravelResult | null> };
 
-const HEX_RADIUS = 10;
+const HEX_RADIUS = 15;
 const HEX_SIZE = 1.08;
 const START_HEX: HexCoord = { q: 1, r: 0 };
 const toWorld = (q: number, r: number) => new THREE.Vector3(HEX_SIZE * Math.sqrt(3) * (q + r / 2), 0, HEX_SIZE * 1.5 * r);
@@ -195,7 +195,7 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
   world.add(portal);
 
   const cloudField = createCloudField();
-  const cloudPlane = new THREE.Mesh(new THREE.PlaneGeometry(72, 72), new THREE.MeshBasicMaterial({ map: cloudField.texture, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide }));
+  const cloudPlane = new THREE.Mesh(new THREE.PlaneGeometry(112, 112), new THREE.MeshBasicMaterial({ map: cloudField.texture, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide }));
   cloudPlane.rotation.x = -Math.PI / 2;
   cloudPlane.position.y = 0.31;
   cloudPlane.renderOrder = 3;
@@ -292,8 +292,8 @@ function setupScene(host: HTMLDivElement, onSelect: (hex: SelectionInfo) => void
     const forward = new THREE.Vector3(-cameraOffset.x, 0, -cameraOffset.z).normalize();
     const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
     cameraTarget.addScaledVector(right, horizontal).addScaledVector(forward, vertical);
-    cameraTarget.x = THREE.MathUtils.clamp(cameraTarget.x, -14, 14);
-    cameraTarget.z = THREE.MathUtils.clamp(cameraTarget.z, -14, 14);
+    cameraTarget.x = THREE.MathUtils.clamp(cameraTarget.x, -28, 28);
+    cameraTarget.z = THREE.MathUtils.clamp(cameraTarget.z, -25, 25);
   };
 
   const selectHex = (event: PointerEvent) => {

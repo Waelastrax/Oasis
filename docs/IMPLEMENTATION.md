@@ -58,7 +58,7 @@ Three.js scéna a její dočasný herní stav zatím zůstávají v `app/oasis-g
 - volná kamera ovládaná šipkami, pravým tlačítkem myši nebo dvěma prsty; gesto zároveň podporuje přiblížení,
 - bezešvá mraková textura bez viditelných hran opakování a okrajů projekční plochy.
 - potvrzení naplánované cesty tlačítkem nebo druhým klepnutím na stejný cíl,
-- rozšířená mapa a oáza se startem hráče na suchém poli vedle jezírka.
+- oáza se startem hráče na suchém poli vedle jezírka a poušť o poloměru 15 hexů (721 polí celkem).
 
 ## Herní stav
 
@@ -215,7 +215,7 @@ Teprve po ověření této smyčky následují stavby, více typů lokací, uži
 
 Tyto hodnoty slouží jen k rychlému ověření smyčky a mají být uložené v konfiguračních datech:
 
-- mapa má poloměr 8 hexů a při založení hry se jednou vygeneruje ze seedu,
+- mapa má poloměr 15 hexů a při založení hry se jednou vygeneruje ze seedu,
 - mapa i objevený obsah zůstávají mezi expedicemi trvalé,
 - hráč začíná s 20 Vitality, 10 body Pramene a 12 jednotkami vody,
 - pro první verzi stojí 1 Energie 1 jednotku vody,

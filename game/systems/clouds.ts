@@ -1,8 +1,8 @@
 import * as THREE from "three";
 
 const TEXTURE_SIZE = 256;
-const PLANE_SIZE = 72;
-const REPEAT = 3.1;
+const PLANE_SIZE = 112;
+const REPEAT = 4.8;
 
 const seeded = (x: number, y: number, salt = 0) => {
   const value = Math.sin(x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453;
